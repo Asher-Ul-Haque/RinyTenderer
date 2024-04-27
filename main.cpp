@@ -1,20 +1,48 @@
+            // Includes 
 #include "imaging/tgaimage.h"
 #include <iostream>
 
+// - - - | - - - | - - -
+
+            // Colors
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 
+// - - - | - - - | - - -
+
+            // Drawing functions
 void makeLine(int X_START, int Y_START, int X_END, int Y_END, float DELTA, TGAImage* IMAGE)
 {
-    int x, y;
-    for (float point = 0; point < 1.0f; point += DELTA)
+    bool steep = false;
+    if (std::abs(X_START - X_END) < std::abs(Y_START - Y_END))
     {
-        x = X_START + (X_END - X_START) * point;
-        y = Y_START + (Y_END - Y_START) * point;
-        IMAGE->set(x, y, white);
+        std::swap(X_START, Y_START);
+        std::swap(X_END, Y_END);
+        steep = true;
+    }
+    if (X_START > X_END)
+    {
+        std::swap(X_START, X_END);
+        std::swap(Y_START, Y_END);
+    }
+    for (int x = X_START; x <= X_END; x++)
+    {
+        float point = (x - X_START) / (float)(X_END - X_START);
+        int y = Y_START * (1.0f - point) + Y_END * point;
+        if (steep)
+        {
+            IMAGE->set(y, x, red);
+        }
+        else
+        {
+            IMAGE->set(x, y, red);
+        }
     }
 }
 
+// - - - | - - - | - - - 
+
+            // Driver
 int main(int argc, char** argv)
 {
     TGAImage image(100, 100, TGAImage::RGB);
