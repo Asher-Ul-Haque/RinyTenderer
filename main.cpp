@@ -29,6 +29,24 @@ const int height = 300;
 
 
 // - - - | - - - | - - -
+//Math functions
+
+
+
+
+
+Vec3f barycentric(Vec2i* THREE_POINTS, Vec2i TARGET_POINT)
+{
+    Vec3f u = Vec3f(THREE_POINTS[2].x - THREE_POINTS[0].x, THREE_POINTS[1].x - THREE_POINTS[0].x, THREE_POINTS[0].x - TARGET_POINT.x) ^ Vec3f(THREE_POINTS[2].y - THREE_POINTS[0].y, THREE_POINTS[1].y - THREE_POINTS[0].y, THREE_POINTS[0].y - TARGET_POINT.y);
+    if (std::abs(u.z) < 1)
+    {
+        return Vec3f(-1, 1, 1);
+    }
+    return Vec3f(1.f - (u.x + u.y)/u.z, u.y/u.z, u.x/u.z);
+}
+
+// - - - | - - - | - - -
+
 // Drawing functions
 
 
@@ -84,7 +102,7 @@ void drawTriangle(Vec2i VERTEX_0, Vec2i VERTEX_1, Vec2i VERTEX_3, TGAImage* IMAG
 
 // - - -
 
-void drawTriangleFilled(Vec2i VERTEX_0, Vec2i VERTEX_1, Vec2i VERTEX_2, TGAImage* IMAGE, const TGAColor COLOR)
+/*void drawTriangleFilled(Vec2i VERTEX_0, Vec2i VERTEX_1, Vec2i VERTEX_2, TGAImage* IMAGE, const TGAColor COLOR)
 {
     bool steep = false;
     // The major axis is the steeper one.
@@ -126,7 +144,37 @@ void drawTriangleFilled(Vec2i VERTEX_0, Vec2i VERTEX_1, Vec2i VERTEX_2, TGAImage
         }
     }
 }
+*/
+// - - -
 
+void drawTriangleFilled(Vec2i* VERTEXES, TGAImage* IMAGE, const TGAColor COLOR)
+{
+    Vec2i boundingBoxMin(IMAGE->get_width() - 1, IMAGE->get_height() - 1);
+    Vec2i boundingBoxMax(0, 0);
+    Vec2i clamp = boundingBoxMin;
+
+    for (int i = 0; i < 3; ++i)
+    {
+        boundingBoxMin.x = std::max(0, std::min(boundingBoxMin.x, VERTEXES[i].x));
+        boundingBoxMin.y = std::max(0, std::min(boundingBoxMin.y, VERTEXES[i].y));
+        boundingBoxMax.x = std::min(clamp.x, std::max(boundingBoxMax.x, VERTEXES[i].x));
+        boundingBoxMax.y = std::min(clamp.y, std::max(boundingBoxMax.y, VERTEXES[i].y));
+    }
+
+    Vec2i pixel;
+    for (pixel.x = boundingBoxMin.x; pixel.x <= boundingBoxMax.x; ++pixel.x)
+    {
+        for (pixel.y = boundingBoxMin.y; pixel.y <= boundingBoxMax.y; ++pixel.y)
+        {
+            Vec3f bc_screen = barycentric(VERTEXES, pixel);
+            if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0)
+            {
+                continue;
+            }
+            IMAGE->set(pixel.x, pixel.y, COLOR);
+        }
+    }
+}
 
 // - - - | - - -
 // Driver functions
@@ -190,8 +238,9 @@ void fillTriangleDriver(TGAImage* IMAGE)
         std::cin >> y1;
         std::cin >> x2;
         std::cin >> y2;
+        Vec2i vertexes[3] = {Vec2i(x0, y0), Vec2i(x1, y1), Vec2i(x2, y2)};
         //draw triangle with a random color
-        drawTriangleFilled(Vec2i(x0, y0), Vec2i(x1, y1), Vec2i(x2, y2), IMAGE, yellow);
+        drawTriangleFilled(vertexes, IMAGE, yellow);
     }
 }
 
