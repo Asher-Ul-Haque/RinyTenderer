@@ -176,6 +176,34 @@ void drawTriangleFilled(Vec2i* VERTEXES, TGAImage* IMAGE, const TGAColor COLOR)
     }
 }
 
+// - - -
+
+void drawModel(Model* MODEL, TGAImage* IMAGE, Vec3f LIGHT_DIRECTION)
+{
+    for (int i = 0; i < MODEL->nfaces(); i++)
+    {
+        std::vector<int> face = MODEL->face(i);
+        Vec2i screen_coords[3];
+        Vec3f world_coords[3];
+
+        for (int j = 0; j < 3; j++)
+        {
+            Vec3f v = MODEL->vert(face[j]);
+            screen_coords[j] = Vec2i((v.x + 1.) * width / 2., (v.y + 1.) * height / 2.);
+            world_coords[j] = v;
+        }
+
+        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
+        n.normalize();
+        float intensity = n * LIGHT_DIRECTION;
+
+        if (intensity > 0)
+        {
+            drawTriangleFilled(screen_coords, IMAGE, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+        }
+    }
+}
+
 // - - - | - - -
 // Driver functions
 
@@ -240,11 +268,25 @@ void fillTriangleDriver(TGAImage* IMAGE)
         std::cin >> y2;
         Vec2i vertexes[3] = {Vec2i(x0, y0), Vec2i(x1, y1), Vec2i(x2, y2)};
         //draw triangle with a random color
-        drawTriangleFilled(vertexes, IMAGE, yellow);
+        drawTriangleFilled(vertexes, IMAGE, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255));
     }
 }
 
+// - - - 
 
+void modelDriver(TGAImage* IMAGE)
+{
+    std::string path;
+    std::cout << "Enter the path to the model: ";
+    std::cin >> path;
+    model = new Model(path.c_str());
+    Vec3f lightDirection;
+    std::cout << "Enter the light direction: ";
+    std::cin >> lightDirection.x;
+    std::cin >> lightDirection.y;
+    std::cin >> lightDirection.z;
+    drawModel(model, IMAGE, lightDirection);
+}
 
 // - - - | - - - | - - - 
 // Driver
@@ -255,7 +297,7 @@ int main(int argc, char** argv)
 {
     TGAImage image(width, height, TGAImage::RGB);
     int choice;
-    std::cout << "1. Draw lines\n2. Draw triangles\n3. Fill triangle";
+    std::cout << "1. Draw lines\n2. Draw triangles\n3. Fill triangles\n4. Draw model\nEnter your choice: ";
     std::cin >> choice;
     switch (choice)
     {
@@ -269,6 +311,10 @@ int main(int argc, char** argv)
 
         case 3:
             fillTriangleDriver(&image);
+            break;
+
+        case 4:
+            modelDriver(&image);
             break;
 
         default:
