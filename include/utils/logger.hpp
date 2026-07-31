@@ -1,93 +1,104 @@
 /**
- * @file logger.h
- * @brief Simple colored console logging macros 
- *
- * Provides lightweight logging for console output with optional color formatting
- * Behavior changes depending on whether "DEBUG" is defined or not.
- * When "DEBUG" is not defined, only FATAL and ERROR logs are enabled, while WARNING, INFO, DEBUG, and TRACE logs are disabled. 
- * Log levels:
- * - FATAL: Critical error (bright red)
- * - ERROR: Recoverable error (red)
- * - WARNING: Noncritical warning
- * - INFO: Informational message
- * - DEBUG: Debugging output
- * - TRACE: Verbose tracing information
- * @note Taken from Forge Library, 
- * @see https://github.com/Asher-Ul-Haque/ForgeLibrary
+  * @file logger.hpp
+  * @brief Simple colored console logging macros.
+  *
+  * Provides lightweight logging utilities for console output with
+  * optional ANSI color formatting. Logging behavior changes depending
+  * on whether `DEBUG` is defined.
+  * 
+  * Log levels:
+  * - FATAL   : Critical error (bright red)
+  * - ERROR   : Recoverable error (red)
+  * - WARNING : Non-critical warning
+  * - INFO    : Informational message
+  * - DEBUG   : Debugging output
+  * - TRACE   : Verbose tracing information
+  *
+  * When `DEBUG` is not defined, WARNING/INFO/DEBUG/TRACE logs are disabled.
+  *
+  * @note Adapted from Forge Library:
+  * https://github.com/Asher-Ul-Haque/ForgeLibrary
 */
-#pragma once 
-#ifdef __cplusplus
+
+#pragma once
 #include <defines.hpp>
-extern "C" {
-#endif
+#include <iostream>
 
-
-// - - - | Log macros and defs | - - - 
-
-
-// - - - Log Levels - - -
-
-/// @brief Log levels for categorizing log messages, used by the logOutput function to determine the severity of the message and how it should be displayed
-typedef enum LogLevel 
+namespace utils
 {
-  LOG_LEVEL_FATAL   =   0, ///< Just give up and die 
-  LOG_LEVEL_ERROR   =   1, ///< Something went wrong badly
-  LOG_LEVEL_WARNING =   2, ///< Are you sure about that
-  LOG_LEVEL_INFO    =   3, ///< Just some information
-  LOG_LEVEL_DEBUG   =   4, ///< Debugging information
-  LOG_LEVEL_TRACE   =   5  ///< Trace every step
-} LogLevel;
+  /// @brief ANSI color for fatal log messages.
+  #define LOG_COLOR_FATAL   "\033[1;31m"
 
+  /// @brief ANSI color for error log messages.
+  #define LOG_COLOR_ERROR   "\033[31m"
 
-// - - - API Controls - - -
+  /// @brief ANSI escape sequence to reset terminal color.
+  #define LOG_COLOR_RESET   "\033[0m"
 
-/** 
- * @brief Core logging function, takes a log level and a message with optional formatting arguments
- * @param LEVEL The log level (e.g., LOG_LEVEL_ERROR)
- * @param MESSAGE The log message format string (like printf)
- * @param ... Optional additional arguments for formatting the message
- * @warning This function is intended to be used through the provided macros (e.g., FORGE_LOG_ERROR) rather than called directly. The macros will handle enabling/disabling log levels based on the build configuration (e.g., DEBUG) and will call this function with the appropriate log level and message.
- * @see FORGE_LOG_FATAL, FORGE_LOG_ERROR, FORGE_LOG_WARNING, FORGE_LOG_INFO, FORGE_LOG_DEBUG, FORGE_LOG_TRACE for examples of how to use this function through macros.
-*/
-void logOutput(LogLevel LEVEL, const char* MESSAGE, ...); // - - - Multivariate, takes any number of arguments greater than 1
+  #ifdef DEBUG
+    /// @brief ANSI color for warning messages.
+    #define LOG_COLOR_WARNING "\033[33m"
 
-// - - - Fatal log
-#ifndef FORGE_LOG_FATAL
-  #define FORGE_LOG_FATAL(MESSAGE, ...) logOutput(LOG_LEVEL_FATAL, MESSAGE __VA_OPT__(,) __VA_ARGS__);
-#endif
+    /// @brief ANSI color for informational messages.
+    #define LOG_COLOR_INFO    "\033[32m"
 
-#ifndef FORGE_LOG_ERROR
-  #define FORGE_LOG_ERROR(MESSAGE, ...) logOutput(LOG_LEVEL_ERROR, MESSAGE __VA_OPT__(,) __VA_ARGS__);
-#endif
+    /// @brief ANSI color for debug messages.
+    #define LOG_COLOR_DEBUG   "\033[36m"
 
-#if !defined(FORGE_LOG_WARNING) && defined(DEBUG)
-  #define FORGE_LOG_WARNING(MESSAGE, ...) logOutput(LOG_LEVEL_WARNING, MESSAGE __VA_OPT__(,) __VA_ARGS__);
-#else
-  #define FORGE_LOG_WARNING(MESSAGE, ...)
-#endif
+    /// @brief ANSI color for trace messages.
+    #define LOG_COLOR_TRACE   "\033[90m"
+  #else
+    #define LOG_COLOR_WARNING ""
+    #define LOG_COLOR_INFO    ""
+    #define LOG_COLOR_DEBUG   ""
+    #define LOG_COLOR_TRACE   ""
+  #endif
 
-#if !defined(FORGE_LOG_INFO) && defined(DEBUG)
-  #define FORGE_LOG_INFO(MESSAGE, ...) logOutput(LOG_LEVEL_INFO, MESSAGE __VA_OPT__(,) __VA_ARGS__);
-#else
-  #define FORGE_LOG_INFO(MESSAGE, ...)
-#endif
+  /**
+    * @brief Logs a fatal error message.
+    *
+    * Writes the message to `std::cerr` using fatal formatting.
+  */
+  #define LOG_FATAL(x) \
+    std::cerr << LOG_COLOR_FATAL "[FATAL] " << x << LOG_COLOR_RESET << '\n';
 
-#if !defined(FORGE_LOG_DEBUG) && defined(DEBUG)
-  #define FORGE_LOG_DEBUG(MESSAGE, ...) logOutput(LOG_LEVEL_DEBUG, MESSAGE __VA_OPT__(,) __VA_ARGS__);
-#else
-  #define FORGE_LOG_DEBUG(MESSAGE, ...)
-#endif
+  /**
+    * @brief Logs an error message.
+    *
+    * Writes the message to `std::cerr`.
+  */
+  #define LOG_ERROR(x) \
+    std::cerr << LOG_COLOR_ERROR "[ERROR] " << x << LOG_COLOR_RESET << '\n';
 
-#if !defined(FORGE_LOG_TRACE) && defined(DEBUG)
-  #define FORGE_LOG_TRACE(MESSAGE, ...) logOutput(LOG_LEVEL_TRACE, MESSAGE __VA_OPT__(,) __VA_ARGS__);
-#else
-  #define FORGE_LOG_TRACE(MESSAGE, ...)
-#endif
+  #ifdef DEBUG
+    /// @brief Logs a warning message.
+    #define LOG_WARNING(x) \
+      std::cerr << LOG_COLOR_WARNING "[WARNING] " << x << LOG_COLOR_RESET << '\n'
 
-#ifndef FORGE_LOG_CLEAR
-  #define FORGE_LOG_CLEAR() printf("\033[H\033[J")
-#endif
+    /// @brief Logs an informational message.
+    #define LOG_INFO(x) \
+      std::cout << LOG_COLOR_INFO "[INFO] " << x << LOG_COLOR_RESET << '\n'
 
-#ifdef __cplusplus
+    /// @brief Logs a debug message.
+    #define LOG_DEBUG(x) \
+      std::cout << LOG_COLOR_DEBUG "[DEBUG] " << x << LOG_COLOR_RESET << '\n'
+
+    /// @brief Logs a trace message.
+    #define LOG_TRACE(x) \
+      std::cout << LOG_COLOR_TRACE "[TRACE] " << x << LOG_COLOR_RESET << '\n'
+
+  #else
+    /// @brief Disabled warning log in non-debug builds.
+    #define LOG_WARNING(x)
+
+    /// @brief Disabled info log in non-debug builds.
+    #define LOG_INFO(x)
+
+    /// @brief Disabled debug log in non-debug builds.
+    #define LOG_DEBUG(x)
+
+    /// @brief Disabled trace log in non-debug builds.
+    #define LOG_TRACE(x)
+
+  #endif
 }
-#endif

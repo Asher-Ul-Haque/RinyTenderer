@@ -1,5 +1,7 @@
 # Binary
 RinyTenderer
+bin/
+result.json
 
 # Prerequisites
 *.d

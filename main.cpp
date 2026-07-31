@@ -1,11 +1,11 @@
+#include <math/vector.hpp>
 #include <defines.hpp>
-#include <utils/logger.hpp>
-#include <utils/dataTypes.hpp>
 #include <curses.h>
+#include <utils/common.hpp>
 
 i32 main (void) 
 {
-  FORGE_LOG_DEBUG("Trying to get the first ncurses window up");
+  LOG_DEBUG("Trying to get the first ncurses window up");
 
   initscr();
   raw();
@@ -16,6 +16,11 @@ i32 main (void)
 
   endwin();
 
-  FORGE_LOG_INFO("Ran!");
+  Vector<f32, 3> a{1, 2, 2};
+  Vector<f32, 3> b(0);
+
+  f32 ans = a.angleDegrees(b);
+
+  LOG_INFO("Ran! " << ans);
   return 0;
 }
