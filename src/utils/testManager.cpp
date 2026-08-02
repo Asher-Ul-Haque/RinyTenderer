@@ -96,10 +96,16 @@ namespace utils
     TestStats          stats;
     std::ostringstream fullLog;
 
-    for (const auto& group : groups)
+    fullLog << "Began Running Tests\n\n";
+    for (u64 i = 0; i < groups.size(); ++i)
     {
+      TestGroup group = groups[i];
+      if (group.size() == 0) continue;
+
+      fullLog << "  Running Group : " << i << "\n\n";
       for (const auto& test : group)
       {
+        fullLog << "\n    Running Test : " << test.description << "\n";
         stats.total++;
 
         std::string output;
@@ -112,7 +118,7 @@ namespace utils
             stats.crashed++;
             stats.crashedTests.push_back(test.description);
             std::cout << COL_WHITE_ON_RED << test.description << " : CRASHED" << COL_RESET;
-            fullLog << "[CRASHED] " << test.description << "\n";
+            fullLog << "    [CRASHED] " << test.description << "\n";
             continue;
           }
         #else
@@ -134,24 +140,26 @@ namespace utils
         {
           stats.passed++;
           std::cout << COL_GREEN << test.description << " : SUCCESS" << COL_RESET << std::endl;
-          fullLog << "[SUCCESS] " << test.description << "\n";
+          fullLog << "    [SUCCESS] " << test.description << "\n";
         }
         else if (result == SKIP_TEST) 
         {
           stats.skipped++;
           stats.skippedTests.push_back(test.description);
           std::cout << COL_YELLOW << test.description << " : SKIPPED" << COL_RESET << std::endl;
-          fullLog << "[SKIPPED] " << test.description << "\n";
+          fullLog << "    [SKIPPED] " << test.description << "\n";
         }
         else  
         {
           stats.failed++;
           stats.failedTests.push_back(test.description);
           std::cout << COL_RED << test.description << " : FAILED" << COL_RESET << std::endl;
-          fullLog << "[FAILED] " << test.description << "\n";
+          fullLog << "    [FAILED] " << test.description << "\n";
         }
       }
+      fullLog << "  Finished Group : " << i << "\n\n";
     }
+    fullLog << "Finished Running Tests\n\n";
 
     // - - - Summary
 

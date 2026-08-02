@@ -359,6 +359,26 @@ public:
     return (f64(180) / f64(std::numbers::pi)) * angleRadians(OTHER);
   }
 
+  // - - - Lerp 
+
+  /**
+   * @brief: Returns a lerped vector between this and another vector 
+   * @param OTHER: Vector another vector 
+   * @param LERP_FACTOR: f64: a double representing a lerp factor 
+   * @warning: LERP_FACTOR must be within [0.0f, 1.0f] lest an asser triggers
+  */
+  Vector lerp(const Vector& OTHER, f64 LERP_FACTOR) const
+  {
+    RUNTIME_ASSERT_MESSAGE(
+      LERP_FACTOR >= 0.0f && LERP_FACTOR <= 1.0f, "[VECTOR]: LERP_FACTOR Needs to be within 0 and 1 (inclusive)");
+    Vector<TYPE, SIZE> solution(0);
+    for (size_t i = 0; i < SIZE; ++i)
+    {
+      solution[i] = (((1 - LERP_FACTOR) * data[i]) + ((LERP_FACTOR) * OTHER[i]));
+    }
+    return solution;
+  }
+
   // - - - Iterators - - - 
 
   /// @brief: Read / Write start iterator 

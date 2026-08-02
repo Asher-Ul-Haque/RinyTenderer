@@ -263,39 +263,64 @@ u8 test_angles()
     return PASS_TEST;
 }
 
+u8 test_lerp()
+{
+    Vector<f64, 3> start({0.0, 10.0, 20.0});
+    Vector<f64, 3> end({10.0, 20.0, 30.0});
+
+    // t = 0 -> start
+    Vector<f64, 3> res0 = start.lerp(end, 0.0);
+    EXPECT_TO_BE_TRUE(res0 == start);
+
+    // t = 1 -> end
+    Vector<f64, 3> res1 = start.lerp(end, 1.0);
+    EXPECT_TO_BE_TRUE(res1 == end);
+
+    // t = 0.5 -> midpoint
+    Vector<f64, 3> mid = start.lerp(end, 0.5);
+    EXPECT_FLOAT_TO_BE(5.0,  mid[0], 1e-5);
+    EXPECT_FLOAT_TO_BE(15.0, mid[1], 1e-5);
+    EXPECT_FLOAT_TO_BE(25.0, mid[2], 1e-5);
+
+    // Arbitrary interpolation
+    Vector<f64, 3> quarter = start.lerp(end, 0.25);
+    EXPECT_FLOAT_TO_BE(2.5,  quarter[0], 1e-5);
+    EXPECT_FLOAT_TO_BE(12.5, quarter[1], 1e-5);
+    EXPECT_FLOAT_TO_BE(22.5, quarter[2], 1e-5);
+
+    return PASS_TEST;
+}
+
 // -----------------------------------------------------------------------------
 // Main Execution
 // -----------------------------------------------------------------------------
 
 int main()
 {
-    std::cout << "==========================================" << std::endl;
-    std::cout << "         REGISTERING VECTOR TESTS         " << std::endl;
-    std::cout << "==========================================" << std::endl;
-
     // Constructors
-    registerTest(test_default_constructor, "Default Constructor");
-    registerTest(test_initializer_list_constructor, "Initializer List Constructor");
-    registerTest(test_copy_constructor, "Copy Constructor");
-    registerTest(test_fill_value_constructor, "Fill Value Constructor");
+    registerTest(test_default_constructor, "Default Constructor", 0);
+    registerTest(test_initializer_list_constructor, "Initializer List Constructor", 0);
+    registerTest(test_copy_constructor, "Copy Constructor", 0);
+    registerTest(test_fill_value_constructor, "Fill Value Constructor", 0);
 
     // Accessors & Iterators
-    registerTest(test_subscript_operator, "Subscript Operator Read/Write");
-    registerTest(test_iterators, "Range-based and Const Iterators");
+    registerTest(test_subscript_operator, "Subscript Operator Read/Write", 1);
+    registerTest(test_iterators, "Range-based and Const Iterators", 1);
 
     // Arithmetic
-    registerTest(test_equality_operators, "Vector Equality Operator");
-    registerTest(test_addition, "Vector Addition (+ and +=)");
-    registerTest(test_subtraction, "Vector Subtraction (- and -=)");
-    registerTest(test_dot_product, "Vector Dot Product (*)");
-    registerTest(test_scalar_multiplication, "Scalar Multiplication (* and *=)");
-    registerTest(test_scalar_division, "Scalar Division (/ and /=)");
-    registerTest(test_cross_product, "3D Vector Cross Product");
+    registerTest(test_equality_operators, "Vector Equality Operator", 2);
+    registerTest(test_addition, "Vector Addition (+ and +=)", 2);
+    registerTest(test_subtraction, "Vector Subtraction (- and -=)", 2);
+    registerTest(test_dot_product, "Vector Dot Product (*)", 2);
+    registerTest(test_scalar_multiplication, "Scalar Multiplication (* and *=)", 2);
+    registerTest(test_scalar_division, "Scalar Division (/ and /=)", 2);
+    registerTest(test_cross_product, "3D Vector Cross Product", 2);
 
     // Math Functions
-    registerTest(test_magnitude_and_distance, "Magnitude and Distance Calculations");
-    registerTest(test_normalization, "Vector Normalization");
-    registerTest(test_angles, "Vector Angle Calculations (Rad/Deg)");
+    registerTest(test_magnitude_and_distance, "Magnitude and Distance Calculations", 3);
+    registerTest(test_normalization, "Vector Normalization", 3);
+    registerTest(test_angles, "Vector Angle Calculations (Rad/Deg)", 3);
+    registerTest(test_lerp, "Vector linear interpolation (Lerp)", 3);
 
     // Execute all registered tests
     runTests();
