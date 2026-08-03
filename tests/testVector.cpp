@@ -8,6 +8,7 @@
 #include <iostream>
 
 using namespace utils;
+using namespace math;
 
 // -----------------------------------------------------------------------------
 // 1. Constructors & Assignment

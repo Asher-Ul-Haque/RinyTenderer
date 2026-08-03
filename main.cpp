@@ -2,6 +2,7 @@
 #include <defines.hpp>
 #include <curses.h>
 #include <utils/common.hpp>
+using namespace math;
 
 i32 main (void) 
 {
