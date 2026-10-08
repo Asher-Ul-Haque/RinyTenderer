@@ -3,7 +3,9 @@
 
 int32_t main(void)
 {
+  boot();
   JUST_LOG_INFO("Hello!, World");
-  doSomething();
+
+  while (true){}
   return 0;
 }

@@ -1,8 +1,7 @@
 #include <rinyTenderer/sample.h>
+#include <rinyTenderer/signal.h>
 
-JUST_API void doSomething(void)
+JUST_API void boot(void)
 {
-  int i = 0;
-  i = i + 1;
-  (void) i;
+  signalBootHandlers();
 }
