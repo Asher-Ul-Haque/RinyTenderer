@@ -1,11 +1,16 @@
 #include <rinyTenderer/signal.h>
+#include <rinyTenderer/window.h>
 #include <signal.h>
 #include <unistd.h>
 
-JUST_LOCAL void singalHandleSIGINT(void)   { TODO }
+JUST_LOCAL void signalHandleSIGINT(void)   { TODO }
 JUST_LOCAL void signalHandleSIGQUIT(void)  { TODO }
 JUST_LOCAL void signalHandleSIGTERM(void)  { TODO }
-JUST_LOCAL void signalHandleSIGWINCH(void) { TODO }
+
+JUST_LOCAL void signalHandleSIGWINCH(void) 
+{ 
+  terminalUpdateSize();
+}
 
 JUST_LOCAL void signalCatchAll(int32_t SIGNAL)
 {
@@ -15,7 +20,7 @@ JUST_LOCAL void signalCatchAll(int32_t SIGNAL)
   {
     case SIGINT:
       JUST_LOG_DEBUG("[SIGNAL HANDLER] : Received : SIGINT");
-      singalHandleSIGINT();
+      signalHandleSIGINT();
       break;
 
     case SIGTERM:
@@ -25,7 +30,7 @@ JUST_LOCAL void signalCatchAll(int32_t SIGNAL)
 
     case SIGWINCH:
       JUST_LOG_DEBUG("[SIGNAL HANDLER] : Received : SIGWINCH");
-      singalHandleSIGINT();
+      signalHandleSIGWINCH();
       break;
 
     default: TODO
