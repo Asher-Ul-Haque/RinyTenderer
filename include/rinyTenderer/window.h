@@ -25,6 +25,9 @@ typedef struct terminalSize
   };
 } TerminalSize;
 
+
+// - - - Size - - -
+
 /// @brief : Updates the terminal size
 JUST_API void         terminalUpdateSize(void);
 
@@ -57,3 +60,29 @@ JUST_API uint16_t     terminalGetWidth  (void);
  * @return : Height as unsigned short
  */
 JUST_API uint16_t     terminalGetHeight (void);
+
+
+// - - - Initialization - - -
+
+/// @brief : Initializes the terminal
+JUST_API void terminalInit(void);
+
+/// @brief : Shuts the terminal renderer down
+JUST_API void terminalShutdown(void);
+
+/// @brief : Turns off echo
+JUST_API static inline void terminalHideCursor(void)
+{ fputs("\033[?25l", stdout); }
+
+/// @brief : Turns on echo
+JUST_API static inline void terminalShowCursor(void)
+{ fputs("\033[?25h", stdout); }
+
+/** @brief : Set cursor position
+ * @param POSITION : The position of the terminal
+ */
+JUST_API void terminalSetCursor(TerminalSize POSITION);
+
+/// @brief : Clear the terminal
+JUST_API static inline void terminalClear(void)
+{ fputs("\033[2J\033[H", stdout); }

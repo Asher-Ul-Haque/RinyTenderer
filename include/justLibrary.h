@@ -215,6 +215,8 @@ extern "C" {
  * @see logger.c 
 */
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -308,6 +310,19 @@ static inline void justLogNoOp(const char* NOTHING, ...) { (void)NOTHING; }
 
 #define JUST_LOG_CLEAR() printf("\033[H\033[J")
 
+/**
+ * @brief : Sets the output stream
+ * @param OUTPUT_STREAM : The stream to redirect to
+ * @warning : You are responsible for handling FILE* being valid
+ */
+JUST_API void justLogSetOutputStream(FILE* OUTPUT_STREAM);
+
+/**
+ * @brief : Sets the error stream
+ * @param ERROR_STREAM : The stream to redirect to
+ * @warning : You are responsible for handling FILE* being valid
+ */
+JUST_API void justLogSetErrorStream(FILE* ERROR_STREAM);
 
 #ifdef __cplusplus
 }
@@ -332,6 +347,10 @@ static inline void justLogNoOp(const char* NOTHING, ...) { (void)NOTHING; }
 #include <stdlib.h>
 
 
+static FILE* stream     = NULL;
+static FILE* errStream  = NULL;
+
+
 // - - - Writing Controls - - - 
 
 
@@ -342,18 +361,17 @@ static inline void justLogNoOp(const char* NOTHING, ...) { (void)NOTHING; }
  */
 static void writeConsole(const char* MESSAGE, LogLevel COLOR)
 {
-  FILE*       stream    = NULL;
   const char* colorStr  = NULL;
 
   switch (COLOR)
   {
-    case LOG_LEVEL_FATAL    : colorStr = "1;97;41"; stream = stderr; break;
-    case LOG_LEVEL_ERROR    : colorStr = "1;31";    stream = stderr; break;
-    case LOG_LEVEL_WARNING  : colorStr = "33";      stream = stdout; break;
-    case LOG_LEVEL_INFO     : colorStr = "32";      stream = stdout; break;
-    case LOG_LEVEL_DEBUG    : colorStr = "36";      stream = stdout; break;
-    case LOG_LEVEL_TRACE    : colorStr = "90";      stream = stdout; break;
-    default                 : colorStr = "0";       stream = stdout; break;
+    case LOG_LEVEL_FATAL    : colorStr = "1;97;41"; errStream == NULL ? errStream = stderr : errStream; break;
+    case LOG_LEVEL_ERROR    : colorStr = "1;31";    errStream == NULL ? errStream = stderr : errStream; break;
+    case LOG_LEVEL_WARNING  : colorStr = "33";      stream    == NULL ? stream    = stdout : stream;    break;
+    case LOG_LEVEL_INFO     : colorStr = "32";      stream    == NULL ? stream    = stdout : stream;    break;
+    case LOG_LEVEL_DEBUG    : colorStr = "36";      stream    == NULL ? stream    = stdout : stream;    break;
+    case LOG_LEVEL_TRACE    : colorStr = "90";      stream    == NULL ? stream    = stdout : stream;    break;
+    default                 : colorStr = "0";       stream    == NULL ? stream    = stdout : stream;    break;
   }
 
   #if PRINT_LOG_COLORS == 1
@@ -406,6 +424,14 @@ JUST_API void justLogOutput(LogLevel LEVEL, const char* MESSAGE, ...)
 
   writeConsole(finalMessage, LEVEL);    
 }
+
+
+
+JUST_API void justLogSetOutputStream(FILE* OUTPUT_STREAM)
+{ stream = OUTPUT_STREAM; }
+
+JUST_API void justLogSetErrorStream(FILE* ERROR_STREAM)
+{ stream = ERROR_STREAM; }
 #endif
 
 // - - - Asserts (always defined) - - -
