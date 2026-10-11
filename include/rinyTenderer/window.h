@@ -7,6 +7,9 @@
 
 #include <justLibrary.h>
 #include <stdint.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
 
 
 /// @brief : Represents size of the terminal window
@@ -25,6 +28,20 @@ typedef struct terminalSize
   };
 } TerminalSize;
 
+
+
+/// @brief : Terminal context global storage
+typedef struct terminalContext
+{
+  struct termios  origTermios;  ///< original terminal config 
+  TerminalSize    size;         ///< Size of the temrinal
+  TerminalSize    cursorPos;    ///< Where is cursor
+
+#ifdef DEBUG
+  const char*     logFilePath;  ///< Log file path for just logger 
+  FILE*           logFile;      ///< Log file for just logger
+#endif
+} TerminalCTX;
 
 // - - - Size - - -
 
@@ -70,6 +87,9 @@ JUST_API void terminalInit(void);
 /// @brief : Shuts the terminal renderer down
 JUST_API void terminalShutdown(void);
 
+
+// - - - Cursor - - -
+
 /// @brief : Turns off echo
 JUST_API static inline void terminalHideCursor(void)
 { fputs("\033[?25l", stdout); }
@@ -86,3 +106,6 @@ JUST_API void terminalSetCursor(TerminalSize POSITION);
 /// @brief : Clear the terminal
 JUST_API static inline void terminalClear(void)
 { fputs("\033[2J\033[H", stdout); }
+
+/// @brief : return terminal terminalContext
+JUST_LOCAL const TerminalCTX* terminalGetContext(void);

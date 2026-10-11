@@ -1,23 +1,13 @@
+#include "justLibrary.h"
 #include <rinyTenderer/window.h>
-#include <sys/ioctl.h>
-#include <termios.h>
-#include <unistd.h>
+#include <errno.h>
 
-
-typedef struct terminalContext
-{
-  struct termios  origTermios;
-  TerminalSize    size;
-  TerminalSize    cursorPos;
-
-#ifdef DEBUG
-  const char*     logFilePath;
-  FILE*           logFile; 
-#endif
-} TerminalCTX;
 
 static bool        enable  = false;
 static TerminalCTX ctx;
+
+JUST_LOCAL const TerminalCTX* terminalGetContext(void)
+{ return &ctx; }
 
 #define ENSURE_AFTER_INIT JUST_ASSERT_DEBUG_MESSAGE(enable, "[TERMNIAL] : Call terminalInit() first")
 
@@ -55,13 +45,15 @@ JUST_API void terminalInit(void)
 
 #ifdef DEBUG 
   ctx.logFilePath = "log.txt";
-  ctx.logFile = fopen(ctx.logFilePath, "w");
+  ctx.logFile     = fopen(ctx.logFilePath, "w");
   JUST_ASSERT_DEBUG_MESSAGE(ctx.logFile != NULL, "[TERMINAL] : Failed to open a log file");
   justLogSetOutputStream(ctx.logFile);
 #endif
 
   JUST_LOG_DEBUG("[TERMINAL] : Intializing");
 
+  size_t mb_1 = 1024 * 1024;
+  justMemorySetLimit(mb_1, "TERM");
   JUST_ASSERT_MESSAGE((tcgetattr(STDIN_FILENO, &ctx.origTermios) != -1), "[TERMINAL] : Failed to save original state");
   JUST_ASSERT_DEBUG(terminalEnableRawMode());
   terminalHideCursor();
