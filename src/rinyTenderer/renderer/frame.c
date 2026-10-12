@@ -99,13 +99,169 @@ JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalSize POSITION)
   FRAME->buffer[index]  = '*';
 }
 
-JUST_API void frameBufferLine(FrameBuffer* FRAME, TerminalSize START_POS, TerminalSize END_POS)
+JUST_API void frameBufferLine(
+    FrameBuffer* FRAME,
+    TerminalSize START_POS,
+    TerminalSize END_POS)
 {
+    int x0 = START_POS.x;
+    int y0 = START_POS.y;
+    int x1 = END_POS.x;
+    int y1 = END_POS.y;
 
-  for (float t = 0; t < 1; t += 0.01f)
+    // - - - Handle steep lines by swapping the axes.
+    bool steep = abs(y1 - y0) > abs(x1 - x0);
+    if (steep)
+    {
+      int temp  = x0;
+      x0        = y0;
+      y0        = temp;
+
+      temp      = x1;
+      x1        = y1;
+      y1        = temp;
+    }
+
+    // - - - Iterate from left to right.
+    if (x0 > x1)
+    {
+      int temp  = x0;
+      x0        = x1;
+      x1        = temp;
+
+      temp      = y0;
+      y0        = y1;
+      y1        = temp;
+    }
+
+    int dx    = x1 - x0;
+    int dy    = abs(y1 - y0);
+    int error = dx / 2;
+    int ystep = (y0 < y1) ? 1 : -1;
+    int y     = y0;
+
+  for (int x = x0; x <= x1; x++)
   {
-    uint16_t x = round(START_POS.x + (END_POS.x - START_POS.x) * t);
-    uint16_t y = round(START_POS.y + (END_POS.y - START_POS.y) * t); 
-    frameBufferSetChar(FRAME, (TerminalSize) { .x = x, .y = y });
+    TerminalSize position = 
+    {
+      .x = steep ? y : x,
+      .y = steep ? x : y
+    };
+    frameBufferSetChar(FRAME, position);
+
+    error -= dy;
+    if (error < 0)
+    {
+      y     += ystep;
+      error += dx;
+    }
+  }
+}
+
+JUST_API void frameBufferTriangle(FrameBuffer* FRAME, TerminalPos POINT_A, TerminalPos POINT_B, TerminalPos POINT_C)
+{
+  frameBufferLine(FRAME, POINT_A, POINT_B);
+  frameBufferLine(FRAME, POINT_B, POINT_C);
+  frameBufferLine(FRAME, POINT_C, POINT_A);
+}
+
+JUST_API void frameBufferTriangleFilled(FrameBuffer* FRAME, TerminalPos POINT_A, TerminalPos POINT_B, TerminalPos POINT_C)
+{
+  int ax = POINT_A.x;
+  int ay = POINT_A.y;
+  int bx = POINT_B.x;
+  int by = POINT_B.y;
+  int cx = POINT_C.x;
+  int cy = POINT_C.y;
+
+  // - - - bubble sort
+  if (ay > by)
+  {
+    int temp  = ax;
+    ax        = bx;
+    bx        = temp;
+
+    temp  = ay;
+    ay    = by;
+    by    = temp;
+  }
+  if (ay > cy)
+  {
+    int temp  = ax;
+    ax        = cx;
+    cx        = temp;
+
+    temp  = ay;
+    ay    = cy;
+    cy    = temp;
+  }
+  if (by > cy)
+  {
+    int temp  = bx;
+    bx        = cx;
+    cx        = temp;
+
+    temp  = by;
+    by    = cy;
+    cy    = temp;
+  }
+  int height = cy - ay;
+
+  // - - - bottom half
+  if (ay != by)
+  {
+    // - - - swwp a horizontal line from ay to by
+    int segmentHeight = by - ay;
+    for (int y = ay; y <= by; ++y)
+    {
+      int x1        = ax + ((cx - ax) * (y - ay)) / height;
+      int x2        = ax + ((bx - ax) * (y - ay)) / segmentHeight;
+
+      int minX, maxX;
+      if (x1 > x2)
+      {
+        minX = x2;
+        maxX = x1;
+      }
+      else
+      {
+        minX = x1;
+        maxX = x2;
+      }
+
+      for (int x = minX; x <= maxX; ++x)
+      {
+        frameBufferSetChar(FRAME, (TerminalPos){.x = x, .y = y});
+      }
+    }
+  }
+
+  // - - - top half
+  if (by != cy)
+  {
+    // - - - swwp a horizontal line from ay to by
+    int segmentHeight = cy - by;
+    for (int y = by; y <= cy; ++y)
+    {
+      int x1        = ax + ((cx - ax) * (y - ay)) / height;
+      int x2        = bx + ((cx - bx) * (y - by)) / segmentHeight;
+
+      int minX, maxX;
+      if (x1 > x2)
+      {
+        minX = x2;
+        maxX = x1;
+      }
+      else
+      {
+        minX = x1;
+        maxX = x2;
+      }
+
+      for (int x = minX; x <= maxX; ++x)
+      {
+        frameBufferSetChar(FRAME, (TerminalPos){.x = x, .y = y});
+      }
+    }
   }
 }

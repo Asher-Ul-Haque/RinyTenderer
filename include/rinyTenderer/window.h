@@ -40,6 +40,7 @@ typedef struct terminalSize
   };
 } TerminalSize;
 
+typedef struct terminalSize TerminalPos;
 
 
 /// @brief : Terminal context global storage

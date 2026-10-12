@@ -19,14 +19,18 @@ typedef struct framebuffer
 #define FULLSCREEN_FRAME_SIZE (TerminalSize) { .rows = 0, .cols = 0 }
 
 /// @brief : Pass this for the frame to be at the top left of the window 
-#define TOP_LEFT_FRAME_POS (TerminalSize) { .rows = 1, .cols = 1 } 
+#define TOP_LEFT_FRAME_POS (TerminalPos) { .rows = 1, .cols = 1 } 
 
-JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, TerminalSize SIZE);
+JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalPos POSITION, TerminalSize SIZE);
 
 JUST_API void frameBufferDestroy(FrameBuffer* FRAME);
 
 JUST_API void frameBufferRender(const FrameBuffer* FRAME);
 
-JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalSize POSITION);
+JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalPos POSITION);
 
-JUST_API void frameBufferLine(FrameBuffer* FRAME, TerminalSize START_POS, TerminalSize END_POS);
+JUST_API void frameBufferLine(FrameBuffer* FRAME, TerminalPos START_POS, TerminalPos END_POS);
+
+JUST_API void frameBufferTriangle(FrameBuffer* FRAME, TerminalPos POINT_A, TerminalPos POINT_B, TerminalPos POINT_C);
+
+JUST_API void frameBufferTriangleFilled(FrameBuffer* FRAME, TerminalPos POINT_A, TerminalPos POINT_B, TerminalPos POINT_C);
