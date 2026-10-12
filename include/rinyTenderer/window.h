@@ -17,14 +17,26 @@ typedef struct terminalSize
 {
   union
   {
-    uint16_t rows;    ///< Height in character cells
-    uint16_t height;  ///< Height in character cells
-  };
+    struct
+    {
+      union
+      {
+        uint16_t rows;    ///< Height in character cells
+        uint16_t height;  ///< Height in character cells
+      };
 
-  union
-  {
-    uint16_t cols;    ///< Width in character cells
-    uint16_t width;   ///< Widht in character cells
+      union
+      {
+        uint16_t cols;    ///< Width in character cells
+        uint16_t width;   ///< Widht in character cells
+      };
+    };
+
+    struct
+    {
+      uint16_t x;
+      uint16_t y;
+    };
   };
 } TerminalSize;
 

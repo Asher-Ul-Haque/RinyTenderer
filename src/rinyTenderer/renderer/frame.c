@@ -1,4 +1,5 @@
 #include <justLibrary.h>
+#include <math.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
 #include <stdint.h>
@@ -36,6 +37,11 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   size_t width      = FRAME->size.width;
   size_t height     = FRAME->size.height;
   size_t totalSize  = ((width + 1) * height) + 1;
+
+  JUST_LOG_DEBUG(
+    "[FRAME] : Size = %u cols x %u rows",
+    (unsigned)FRAME->size.width,
+    (unsigned)FRAME->size.height);
 
   FRAME->buffer = (char*) JUST_MALLOC_TAGGED(totalSize, "TERM");
   JUST_ASSERT_MESSAGE(FRAME->buffer != NULL, "[FRAME] : Allocation for this frame failed");
@@ -84,13 +90,22 @@ JUST_API void frameBufferRender(const FrameBuffer* FRAME)
 JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalSize POSITION)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG_MESSAGE(FRAME->buffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
 
-  uint16_t x = POSITION.cols;
-  uint16_t y = POSITION.rows;
+  if (POSITION.x >= FRAME->size.width)  return;
+  if (POSITION.y >= FRAME->size.height) return;
 
-  JUST_ASSERT_DEBUG(x < FRAME->size.width);
-  JUST_ASSERT_DEBUG(y < FRAME->size.height);
+  size_t index          = POSITION.y * (FRAME->size.width + 1) + POSITION.x;
+  FRAME->buffer[index]  = '*';
+}
 
-  size_t index = y * (FRAME->size.width + 1) + x;
-  FRAME->buffer[index] = '*';
+JUST_API void frameBufferLine(FrameBuffer* FRAME, TerminalSize START_POS, TerminalSize END_POS)
+{
+
+  for (float t = 0; t < 1; t += 0.01f)
+  {
+    uint16_t x = round(START_POS.x + (END_POS.x - START_POS.x) * t);
+    uint16_t y = round(START_POS.y + (END_POS.y - START_POS.y) * t); 
+    frameBufferSetChar(FRAME, (TerminalSize) { .x = x, .y = y });
+  }
 }
