@@ -106,7 +106,7 @@ JUST_API void terminalInit(void)
   terminalUpdateSize();
 
   size_t mb_1 = 1024 * 1024;
-  justMemorySetLimit(mb_1, "TERM");
+  justMemorySetLimit(mb_1, "TERM_BUFFER");
   JUST_ASSERT_MESSAGE((tcgetattr(STDIN_FILENO, &ctx.origTermios) != -1), "[TERMINAL] : Failed to save original state");
   JUST_ASSERT_DEBUG(terminalEnableRawMode());
   terminalHideCursor();

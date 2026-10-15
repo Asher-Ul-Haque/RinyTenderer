@@ -14,7 +14,7 @@ int32_t main(void)
 
     FrameBuffer frame;
     frameBufferInit(&frame, TOP_LEFT_FRAME_POS, FULLSCREEN_FRAME_SIZE);
-
+    frameBufferSetFPS(&frame, 30);
 
     TerminalPos a = { .x = 60, .y = 12 };
     TerminalPos b = { .x = 70, .y = 2  };
@@ -39,12 +39,17 @@ int32_t main(void)
       terminalPollInput();
       if (terminalIsKeyDown(KEY_QUIT)) running = false;
 
-      frameBufferRender(&frame);
-      struct timespec ts = {
-          .tv_sec = 0,
-          .tv_nsec = 500000000 // 500,000,000 ns = 500,000 us = 0.5 seconds
-      };
-      nanosleep(&ts, NULL);
+// 2. Clear back buffer for the new frame
+        frameBufferClear(&frame);
+
+        // 3. Draw shapes onto back buffer
+        TerminalPos a = { .x = 60, .y = 12 };
+        TerminalPos b = { .x = 70, .y = 2  };
+        TerminalPos c = { .x = 80, .y = 15 };
+        frameBufferTriangleFilled(&frame, a, b, c);
+
+        // 4. Differential render (only sends changed characters, zero flicker)
+        frameBufferRender(&frame);
     }
 
     frameBufferDestroy(&frame);

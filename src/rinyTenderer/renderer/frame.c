@@ -1,9 +1,11 @@
+#include <bits/time.h>
 #include <justLibrary.h>
 #include <math.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, TerminalSize SIZE)
@@ -37,15 +39,17 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   size_t width      = FRAME->size.width;
   size_t height     = FRAME->size.height;
   size_t totalSize  = ((width + 1) * height) + 1;
-
+  
   JUST_LOG_DEBUG(
     "[FRAME] : Size = %u cols x %u rows",
     (unsigned)FRAME->size.width,
     (unsigned)FRAME->size.height);
 
-  FRAME->buffer = (char*) JUST_MALLOC_TAGGED(totalSize, "TERM");
-  JUST_ASSERT_MESSAGE(FRAME->buffer != NULL, "[FRAME] : Allocation for this frame failed");
+  FRAME->backBuffer = (char*) JUST_MALLOC_TAGGED(totalSize, "TERM_BUFFER");
+  JUST_ASSERT_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
+  FRAME->frontBuffer = (char*) JUST_MALLOC_TAGGED(totalSize, "TERM_BUFFER");
+  JUST_ASSERT_MESSAGE(FRAME->frontBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
   // - - - Populate buffer with spaces, newlines at row ends and \0 at the end
   for (uint16_t r = 0; r < height; ++r)
@@ -53,11 +57,16 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
     size_t rowOffset = r * (width + 1);
     for (uint16_t c = 0; c < width; ++c)
     {
-      FRAME->buffer[rowOffset + c] = ' ';
+      FRAME->backBuffer[rowOffset + c] = ' ';
     }
-    FRAME->buffer[rowOffset + width] = '\n';
+    FRAME->backBuffer[rowOffset + width] = '\n';
   }
-  FRAME->buffer[totalSize - 1] = '\0';
+  FRAME->backBuffer[totalSize - 1] = '\0';
+
+  // - - - setup fps
+  clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
+  FRAME->targetFPS = 0;
+  FRAME->actualFPS = 0;
 
   JUST_LOG_INFO("[FRAME] : Frame ready");
 }
@@ -68,35 +77,108 @@ JUST_API void frameBufferDestroy(FrameBuffer* FRAME)
 
   JUST_ASSERT_DEBUG_MESSAGE(FRAME != NULL, "[FRAME] : Cannot destroy a NULL FRAME");
 
-  JUST_FREE(FRAME->buffer);
-  FRAME->buffer = NULL;
+  JUST_FREE(FRAME->backBuffer);
+  JUST_FREE(FRAME->frontBuffer);
+  FRAME->backBuffer  = NULL;
+  FRAME->frontBuffer = NULL;
 
   JUST_LOG_INFO("[FRAME] : Destroyed");
 }
 
-JUST_API void frameBufferRender(const FrameBuffer* FRAME)
+JUST_API void frameBufferSetFPS(FrameBuffer* FRAME, uint8_t TARGET_FPS)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
+  FRAME->targetFPS = TARGET_FPS;
+}
 
-  size_t width      = FRAME->size.width;
-  size_t height     = FRAME->size.height;
-  size_t totalSize  = (width + 1) * height;
+JUST_API uint8_t frameBufferGetFPS(const FrameBuffer* FRAME)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  return FRAME->actualFPS;
+}
 
-  terminalSetCursor(FRAME->position);
+JUST_API void frameBufferRender(FrameBuffer* FRAME)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot render in an uninitialized buffer");
+
+  // - - - scan through and only write cells that changed
+  for (uint16_t y = 0; y < FRAME->size.height; ++y)
+  {
+    for (uint16_t x = 0; x < FRAME->size.width; ++x)
+    {
+      size_t  index     = y * (FRAME->size.width + 1) + x;
+      char    backChar  = FRAME->backBuffer[index];
+      char    frontChar = FRAME->frontBuffer[index];
+
+      if (backChar != frontChar)
+      {
+        printf("\033[%d;%dH%c]", FRAME->position.rows + y, FRAME->position.cols + x, backChar);
+        FRAME->frontBuffer[index] = backChar;
+      }
+    }
+  }
   fflush(stdout);
-  write(STDOUT_FILENO, FRAME->buffer, totalSize);
+
+  // - - - update timer
+  struct timespec currentTime;
+  clock_gettime(CLOCK_MONOTONIC, &currentTime);
+
+
+  uint64_t targetNs  = FRAME->targetFPS > 0 ? 1000000000L / FRAME->targetFPS : 1;
+  uint64_t elapsedNs =  (currentTime.tv_sec   - FRAME->lastFrameTime.tv_sec) * 1000000000L +
+                        (currentTime.tv_nsec  - FRAME->lastFrameTime.tv_nsec);
+
+  FRAME->actualFPS = 1000000000 / elapsedNs;
+
+  if (elapsedNs < targetNs)
+  {
+    struct timespec sleepTime = 
+      {
+        .tv_sec = 0,
+        .tv_nsec = targetNs - elapsedNs
+      };
+    nanosleep(&sleepTime, NULL);
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
+
+  static uint8_t frame = 0;
+  frame++;
+  if (frame % 10 == 0)
+  {
+    JUST_LOG_TRACE("Actual FPS : %d", FRAME->actualFPS);
+  }
+}
+
+JUST_API void frameBufferClear(FrameBuffer* FRAME)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot clear an uninitialized buffer");
+
+  for (uint16_t y = 0; y < FRAME->size.height; ++y)
+  {
+    for (uint16_t x = 0; x < FRAME->size.width; ++x)
+    {
+      size_t index = y * (FRAME->size.width + 1) + x;
+      FRAME->backBuffer[index] = ' ';
+    }
+
+    size_t newLineIndex = y * (FRAME->size.width + 1) + FRAME->size.width;
+    FRAME->backBuffer[newLineIndex] = '\n';
+  }
 }
 
 JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalSize POSITION)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
-  JUST_ASSERT_DEBUG_MESSAGE(FRAME->buffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
+  JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
 
   if (POSITION.x >= FRAME->size.width)  return;
   if (POSITION.y >= FRAME->size.height) return;
 
   size_t index          = POSITION.y * (FRAME->size.width + 1) + POSITION.x;
-  FRAME->buffer[index]  = '*';
+  FRAME->backBuffer[index]  = '*';
 }
 
 JUST_API void frameBufferLine(
