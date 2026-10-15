@@ -42,6 +42,27 @@ typedef struct terminalSize
 
 typedef struct terminalSize TerminalPos;
 
+/// @brief : Enum for keys
+typedef enum keyCode
+{
+  KEY_NONE  = 0,
+  KEY_UNKNOWN,
+
+  KEY_QUIT,
+  KEY_SPACE,
+  KEY_W,
+  KEY_A,
+  KEY_S,
+  KEY_D,
+
+  KEY_UP,
+  KEY_DOWN,
+  KEY_RIGHT,
+  KEY_LEFT,
+
+  KEY_CODE_COUNT
+} KeyCode;
+
 
 /// @brief : Terminal context global storage
 typedef struct terminalContext
@@ -49,6 +70,8 @@ typedef struct terminalContext
   struct termios  origTermios;  ///< original terminal config 
   TerminalSize    size;         ///< Size of the temrinal
   TerminalSize    cursorPos;    ///< Where is cursor
+
+  JustBitset      keys;                 ///< Keys
 
 #ifdef DEBUG
   const char*     logFilePath;  ///< Log file path for just logger 
@@ -91,6 +114,15 @@ JUST_API uint16_t     terminalGetWidth  (void);
  */
 JUST_API uint16_t     terminalGetHeight (void);
 
+/// @brief : Checks key presses
+JUST_API void terminalPollInput(void);
+
+/**
+ * @brief : Tells whether a given key is pressed or not
+ * @param KEY : The key to check
+ * @return : true if pressed, false otherwise
+ */
+JUST_API bool terminalIsKeyDown(KeyCode KEY);
 
 // - - - Initialization - - -
 

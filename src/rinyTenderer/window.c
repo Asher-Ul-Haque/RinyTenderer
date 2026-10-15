@@ -1,7 +1,6 @@
 #include "justLibrary.h"
 #include <rinyTenderer/window.h>
-#include <errno.h>
-
+#include <unistd.h>
 
 static bool        enable  = false;
 static TerminalCTX ctx;
@@ -11,7 +10,7 @@ JUST_LOCAL const TerminalCTX* terminalGetContext(void)
 
 #define ENSURE_AFTER_INIT JUST_ASSERT_DEBUG_MESSAGE(enable, "[TERMNIAL] : Call terminalInit() first")
 
-bool terminalEnableRawMode(void)
+static bool terminalEnableRawMode(void)
 {
   struct termios copy = ctx.origTermios;
 
@@ -28,7 +27,7 @@ bool terminalEnableRawMode(void)
   return true;
 }
 
-bool terminalDisableRawMode(void)
+static bool terminalDisableRawMode(void)
 {
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &ctx.origTermios) == -1)
   {
@@ -38,6 +37,57 @@ bool terminalDisableRawMode(void)
 
   return true;
 }
+
+static void terminalInputInit(void)
+{
+  bool ok = justBitsetCreate(&ctx.keys, KEY_CODE_COUNT, NULL, "TERMINAL_INPUT");
+  JUST_ASSERT_DEBUG_MESSAGE(ok, "[TERMINAL] : Failed to create bitset for input");
+
+  justBitsetClearAll(&ctx.keys);
+}
+
+static KeyCode parseKeyCode(void)
+{
+  char c;
+  if (read(STDIN_FILENO, &c, 1) <= 0) return KEY_NONE;
+
+  if (c == '\033')
+  {
+    char seq[2];
+    if (read(STDIN_FILENO, &seq[0], 1) != 1) return KEY_UNKNOWN;
+    if (read(STDIN_FILENO, &seq[1], 1) != 1) return KEY_UNKNOWN;
+
+    if (seq[0] == '[')
+    {
+      switch (seq[1])
+      {
+        case 'A' : return KEY_UP;
+        case 'B' : return KEY_DOWN;
+        case 'C' : return KEY_RIGHT;
+        case 'D' : return KEY_LEFT;
+        default  : return KEY_UNKNOWN; 
+      }
+    }
+
+    return KEY_UNKNOWN;
+  }
+
+  switch (c)
+  {
+    case 'q' : return KEY_QUIT;
+    case ' ' : return KEY_SPACE;
+    case 'w' : 
+    case 'W' : return KEY_W;
+    case 'a' :
+    case 'A' : return KEY_A;
+    case 's' :
+    case 'S' : return KEY_S;
+    case 'd' :
+    case 'D' : return KEY_D;
+    default  : return KEY_UNKNOWN;
+  }
+}
+
 
 JUST_API void terminalInit(void)
 {
@@ -52,6 +102,7 @@ JUST_API void terminalInit(void)
 
   JUST_LOG_DEBUG("[TERMINAL] : Intializing");
 
+  terminalInputInit();
   terminalUpdateSize();
 
   size_t mb_1 = 1024 * 1024;
@@ -105,3 +156,25 @@ JUST_API void terminalSetCursor(TerminalSize POSITION)
   printf("\033[%d;%dH", POSITION.rows, POSITION.cols);
 }
 
+JUST_API void terminalPollInput(void)
+{
+  justBitsetClearAll(&ctx.keys);
+
+  // - - - Drain all bytes in stdin for this frame
+  KeyCode key = KEY_UNKNOWN;
+  while (key != KEY_NONE)
+  {
+    key = parseKeyCode();
+
+    if (key > KEY_NONE && key < KEY_CODE_COUNT)
+    {
+      justBitsetSet(&ctx.keys, key);
+    }
+  }
+}
+
+JUST_API bool terminalIsKeyDown(KeyCode KEY)
+{
+  if (KEY <= KEY_NONE || KEY >= KEY_CODE_COUNT) return false;
+  return justBitsetGet(&ctx.keys, KEY);
+}
