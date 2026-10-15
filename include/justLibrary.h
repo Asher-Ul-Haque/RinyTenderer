@@ -380,6 +380,8 @@ static void writeConsole(const char* MESSAGE, LogLevel COLOR)
     (void) colorStr;
     fprintf(stream, "%s\n", MESSAGE); // - - -This looks scary
   #endif
+
+    fflush(stream);
   /*Here is how it works:
   \033[     - This is the escape character
   %s        - This is the color code

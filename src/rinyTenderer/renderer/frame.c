@@ -1,12 +1,53 @@
 #include <bits/time.h>
 #include <justLibrary.h>
-#include <math.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+
+// - - - Color - - -
+
+JUST_API TerminalPixel terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B)
+{
+  uint8_t color = 0;
+  // - - - Check if the color is close to grayscale
+  if (R == G && G == B)
+  {
+    // - - - Pure black / white extremes
+    if (R < 8)
+    {
+      color = 16;
+      goto constr_and_ret;
+    }
+    if (R > 248) 
+    { 
+      color = 231;
+      goto constr_and_ret;
+    }
+    
+    // - - - Map to the 24-step grayscale ramp (codes 232 - 255) Formula: 232 + (brightness step from 0 to 23)
+    color = 232 + (R - 8) * 24 / 247;
+    goto constr_and_ret;
+  }
+
+  // - - - Otherwise, map to the 6x6x6 color cube (codes 16 - 231)
+  // - - - Scale R, G, B from [0, 255] down to [0, 5]
+  int ir = (R * 5) / 255;
+  int ig = (G * 5) / 255;
+  int ib = (B * 5) / 255;
+
+  // - - - Cube formula: 16 + 36 * r + 6 * g + b
+  color = (uint8_t)(16 + (36 * ir) + (6 * ig) + ib);
+
+constr_and_ret:
+  return (TerminalPixel) { .ch = CHAR, .color = color };
+}
+
+
+// - - - Create and Destroy - - - 
 
 JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, TerminalSize SIZE)
 {
@@ -38,17 +79,17 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   // - - - allocate 1D buffer : ((width + 1 for \n) * height) + 1 for \0
   size_t width      = FRAME->size.width;
   size_t height     = FRAME->size.height;
-  size_t totalSize  = ((width + 1) * height) + 1;
+  size_t totalCells = ((width + 1) * height + 1);
   
   JUST_LOG_DEBUG(
     "[FRAME] : Size = %u cols x %u rows",
     (unsigned)FRAME->size.width,
     (unsigned)FRAME->size.height);
 
-  FRAME->backBuffer = (char*) JUST_MALLOC_TAGGED(totalSize, "TERM_BUFFER");
+  FRAME->backBuffer = (TerminalPixel*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalPixel), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
-  FRAME->frontBuffer = (char*) JUST_MALLOC_TAGGED(totalSize, "TERM_BUFFER");
+  FRAME->frontBuffer = (TerminalPixel*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalPixel), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->frontBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
   // - - - Populate buffer with spaces, newlines at row ends and \0 at the end
@@ -57,16 +98,20 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
     size_t rowOffset = r * (width + 1);
     for (uint16_t c = 0; c < width; ++c)
     {
-      FRAME->backBuffer[rowOffset + c] = ' ';
+      FRAME->backBuffer[rowOffset + c]  = (TerminalPixel){ .ch = ' ',  .color = 7 };
+      FRAME->frontBuffer[rowOffset + c] = (TerminalPixel){ .ch = '\0', .color = 0 };
     }
-    FRAME->backBuffer[rowOffset + width] = '\n';
+    FRAME->backBuffer[rowOffset + width] = (TerminalPixel){ .ch = '\n', .color = 0 };
   }
-  FRAME->backBuffer[totalSize - 1] = '\0';
+  FRAME->backBuffer[totalCells - 1] = (TerminalPixel){ .ch = '\0', .color = 0 };
 
   // - - - setup fps
   clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
-  FRAME->targetFPS = 0;
+  FRAME->targetFPS = 30;
   FRAME->actualFPS = 0;
+
+  // - - - initial clear
+  frameBufferClear(FRAME, (TerminalPixel) { .color = 0, .ch = ' '});
 
   JUST_LOG_INFO("[FRAME] : Frame ready");
 }
@@ -85,17 +130,8 @@ JUST_API void frameBufferDestroy(FrameBuffer* FRAME)
   JUST_LOG_INFO("[FRAME] : Destroyed");
 }
 
-JUST_API void frameBufferSetFPS(FrameBuffer* FRAME, uint8_t TARGET_FPS)
-{
-  JUST_ASSERT_DEBUG(FRAME != NULL);
-  FRAME->targetFPS = TARGET_FPS;
-}
 
-JUST_API uint8_t frameBufferGetFPS(const FrameBuffer* FRAME)
-{
-  JUST_ASSERT_DEBUG(FRAME != NULL);
-  return FRAME->actualFPS;
-}
+// - - - Render and clear - - - 
 
 JUST_API void frameBufferRender(FrameBuffer* FRAME)
 {
@@ -107,51 +143,57 @@ JUST_API void frameBufferRender(FrameBuffer* FRAME)
   {
     for (uint16_t x = 0; x < FRAME->size.width; ++x)
     {
-      size_t  index     = y * (FRAME->size.width + 1) + x;
-      char    backChar  = FRAME->backBuffer[index];
-      char    frontChar = FRAME->frontBuffer[index];
+      size_t        index       = y * (FRAME->size.width + 1) + x;
+      TerminalPixel backPixel   = FRAME->backBuffer[index];
+      TerminalPixel frontPixel  = FRAME->frontBuffer[index];
 
-      if (backChar != frontChar)
+      if (backPixel.ch != frontPixel.ch || backPixel.color != frontPixel.color)
       {
-        printf("\033[%d;%dH%c]", FRAME->position.rows + y, FRAME->position.cols + x, backChar);
-        FRAME->frontBuffer[index] = backChar;
+        printf("\033[38;5;%dm\033[%d;%dH%c", 
+           backPixel.color, 
+           FRAME->position.rows + y, 
+           FRAME->position.cols + x, 
+           backPixel.ch);
+        FRAME->frontBuffer[index] = backPixel;
       }
     }
   }
   fflush(stdout);
 
   // - - - update timer
-  struct timespec currentTime;
-  clock_gettime(CLOCK_MONOTONIC, &currentTime);
+struct timespec currentTime;
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
+    uint64_t targetNs  = FRAME->targetFPS > 0 ? 1000000000L / FRAME->targetFPS : 1;
+    uint64_t elapsedNs = (currentTime.tv_sec  - FRAME->lastFrameTime.tv_sec) * 1000000000L +
+                         (currentTime.tv_nsec - FRAME->lastFrameTime.tv_nsec);
 
-  uint64_t targetNs  = FRAME->targetFPS > 0 ? 1000000000L / FRAME->targetFPS : 1;
-  uint64_t elapsedNs =  (currentTime.tv_sec   - FRAME->lastFrameTime.tv_sec) * 1000000000L +
-                        (currentTime.tv_nsec  - FRAME->lastFrameTime.tv_nsec);
+    if (elapsedNs == 0) elapsedNs = 1;
+    uint8_t instantFPS  = (uint8_t)(1000000000ULL / elapsedNs);
+    FRAME->actualFPS    = (FRAME->actualFPS == 0) ? instantFPS : (uint8_t)((FRAME->actualFPS * 4 + instantFPS) / 5);
 
-  FRAME->actualFPS = 1000000000 / elapsedNs;
+    if (elapsedNs < targetNs)
+    {
+      struct timespec sleepTime = 
+        { 
+          .tv_sec = 0, 
+          .tv_nsec = targetNs - elapsedNs 
+        };
+      nanosleep(&sleepTime, NULL);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
 
-  if (elapsedNs < targetNs)
-  {
-    struct timespec sleepTime = 
-      {
-        .tv_sec = 0,
-        .tv_nsec = targetNs - elapsedNs
-      };
-    nanosleep(&sleepTime, NULL);
-  }
-
-  clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
-
-  static uint8_t frame = 0;
-  frame++;
-  if (frame % 10 == 0)
-  {
-    JUST_LOG_TRACE("Actual FPS : %d", FRAME->actualFPS);
-  }
+  #ifdef DEBUG
+    static uint8_t frame = 0;
+    frame++;
+    if (frame % 30 == 0)
+    {
+      JUST_LOG_DEBUG("FPS : %d", FRAME->actualFPS);
+    }
+  #endif 
 }
 
-JUST_API void frameBufferClear(FrameBuffer* FRAME)
+JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalPixel PIXEL_TEMPLATE)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot clear an uninitialized buffer");
@@ -161,15 +203,15 @@ JUST_API void frameBufferClear(FrameBuffer* FRAME)
     for (uint16_t x = 0; x < FRAME->size.width; ++x)
     {
       size_t index = y * (FRAME->size.width + 1) + x;
-      FRAME->backBuffer[index] = ' ';
+      FRAME->backBuffer[index] = PIXEL_TEMPLATE;
     }
 
     size_t newLineIndex = y * (FRAME->size.width + 1) + FRAME->size.width;
-    FRAME->backBuffer[newLineIndex] = '\n';
+    FRAME->backBuffer[newLineIndex] = (TerminalPixel) { .ch  = '\n', .color = PIXEL_TEMPLATE.color };
   }
 }
 
-JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalSize POSITION)
+JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalPixel PIXEL)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
@@ -177,14 +219,18 @@ JUST_API void frameBufferSetChar(FrameBuffer* FRAME, TerminalSize POSITION)
   if (POSITION.x >= FRAME->size.width)  return;
   if (POSITION.y >= FRAME->size.height) return;
 
-  size_t index          = POSITION.y * (FRAME->size.width + 1) + POSITION.x;
-  FRAME->backBuffer[index]  = '*';
+  size_t index              = POSITION.y * (FRAME->size.width + 1) + POSITION.x;
+  FRAME->backBuffer[index]  = PIXEL;
 }
 
+
+// - - - Geometry - - - 
+
 JUST_API void frameBufferLine(
-    FrameBuffer* FRAME,
-    TerminalSize START_POS,
-    TerminalSize END_POS)
+    FrameBuffer*  FRAME, 
+    TerminalPos   START_POS, 
+    TerminalPos   END_POS, 
+    TerminalPixel PIXEL_TEMPLATE)
 {
     int x0 = START_POS.x;
     int y0 = START_POS.y;
@@ -229,7 +275,7 @@ JUST_API void frameBufferLine(
       .x = steep ? y : x,
       .y = steep ? x : y
     };
-    frameBufferSetChar(FRAME, position);
+    frameBufferSetPixel(FRAME, position, PIXEL_TEMPLATE);
 
     error -= dy;
     if (error < 0)
@@ -240,14 +286,13 @@ JUST_API void frameBufferLine(
   }
 }
 
-JUST_API void frameBufferTriangle(FrameBuffer* FRAME, TerminalPos POINT_A, TerminalPos POINT_B, TerminalPos POINT_C)
-{
-  frameBufferLine(FRAME, POINT_A, POINT_B);
-  frameBufferLine(FRAME, POINT_B, POINT_C);
-  frameBufferLine(FRAME, POINT_C, POINT_A);
-}
 
-JUST_API void frameBufferTriangleFilled(FrameBuffer* FRAME, TerminalPos POINT_A, TerminalPos POINT_B, TerminalPos POINT_C)
+JUST_API void frameBufferTriangle(
+    FrameBuffer*  FRAME, 
+    TerminalPos   POINT_A, 
+    TerminalPos   POINT_B, 
+    TerminalPos   POINT_C, 
+    TerminalPixel PIXEL_TEMPLATE)
 {
   int ax = POINT_A.x;
   int ay = POINT_A.y;
@@ -313,7 +358,7 @@ JUST_API void frameBufferTriangleFilled(FrameBuffer* FRAME, TerminalPos POINT_A,
 
       for (int x = minX; x <= maxX; ++x)
       {
-        frameBufferSetChar(FRAME, (TerminalPos){.x = x, .y = y});
+        frameBufferSetPixel(FRAME, (TerminalPos){.x = x, .y = y}, PIXEL_TEMPLATE);
       }
     }
   }
@@ -342,7 +387,7 @@ JUST_API void frameBufferTriangleFilled(FrameBuffer* FRAME, TerminalPos POINT_A,
 
       for (int x = minX; x <= maxX; ++x)
       {
-        frameBufferSetChar(FRAME, (TerminalPos){.x = x, .y = y});
+        frameBufferSetPixel(FRAME, (TerminalPos){.x = x, .y = y}, PIXEL_TEMPLATE);
       }
     }
   }
