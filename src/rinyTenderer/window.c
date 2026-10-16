@@ -144,7 +144,7 @@ JUST_API void terminalUpdateSize(void)
   {
     JUST_LOG_INFO("[TERMINAL] : Size updated to %u rows and %u cols", windowSize.ws_row, windowSize.ws_col);
   }
-  ctx.size.rows = windowSize.ws_row;
+  ctx.size.rows = windowSize.ws_row * 2;
   ctx.size.cols = windowSize.ws_col;
 }
 

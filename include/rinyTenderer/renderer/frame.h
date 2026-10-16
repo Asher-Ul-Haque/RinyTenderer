@@ -9,17 +9,14 @@
 #include <stdint.h>
 
 /// @brief : A terminalPixel
-typedef struct terminalPixel
-{
-  char    ch;
-  uint8_t color;
-} TerminalPixel;
+typedef uint8_t terminalPixel;
+typedef uint8_t TerminalPixel;
 
 /// @brief : Say a frame in a window, a window can have multiple frames
 typedef struct framebuffer
 {
   TerminalSize    position;       ///< Where in the terminal
-  TerminalSize    size;           ///< How big is the terminal
+  TerminalSize    size;           ///< How big is the terminal, use this for operations
   TerminalPixel*  backBuffer;     ///< Where to draw 
   TerminalPixel*  frontBuffer;    ///< What to show
   struct timespec lastFrameTime;  ///< Last frame stat

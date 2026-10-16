@@ -12,25 +12,15 @@
 
 JUST_API TerminalPixel terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B)
 {
-  uint8_t color = 0;
   // - - - Check if the color is close to grayscale
   if (R == G && G == B)
   {
     // - - - Pure black / white extremes
-    if (R < 8)
-    {
-      color = 16;
-      goto constr_and_ret;
-    }
-    if (R > 248) 
-    { 
-      color = 231;
-      goto constr_and_ret;
-    }
+    if (R < 8)   return 16;
+    if (R > 248) return 231;
     
     // - - - Map to the 24-step grayscale ramp (codes 232 - 255) Formula: 232 + (brightness step from 0 to 23)
-    color = 232 + (R - 8) * 24 / 247;
-    goto constr_and_ret;
+    return 232 + (R - 8) * 24 / 247;
   }
 
   // - - - Otherwise, map to the 6x6x6 color cube (codes 16 - 231)
@@ -40,10 +30,7 @@ JUST_API TerminalPixel terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, u
   int ib = (B * 5) / 255;
 
   // - - - Cube formula: 16 + 36 * r + 6 * g + b
-  color = (uint8_t)(16 + (36 * ir) + (6 * ig) + ib);
-
-constr_and_ret:
-  return (TerminalPixel) { .ch = CHAR, .color = color };
+  return (uint8_t)(16 + (36 * ir) + (6 * ig) + ib);
 }
 
 
@@ -60,7 +47,7 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   if (SIZE.cols == 0 || SIZE.rows == 0)
   {
     JUST_LOG_WARNING("[FRAME] : Going for maximimum size");
-    FRAME->size = ctx->size; 
+    FRAME->size = ctx->size;
   }
   else
   {
@@ -79,7 +66,7 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   // - - - allocate 1D buffer : ((width + 1 for \n) * height) + 1 for \0
   size_t width      = FRAME->size.width;
   size_t height     = FRAME->size.height;
-  size_t totalCells = ((width + 1) * height + 1);
+  size_t totalCells = width * height;
   
   JUST_LOG_DEBUG(
     "[FRAME] : Size = %u cols x %u rows",
@@ -95,15 +82,13 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   // - - - Populate buffer with spaces, newlines at row ends and \0 at the end
   for (uint16_t r = 0; r < height; ++r)
   {
-    size_t rowOffset = r * (width + 1);
+    size_t rowOffset = r * width;
     for (uint16_t c = 0; c < width; ++c)
     {
-      FRAME->backBuffer[rowOffset + c]  = (TerminalPixel){ .ch = ' ',  .color = 7 };
-      FRAME->frontBuffer[rowOffset + c] = (TerminalPixel){ .ch = '\0', .color = 0 };
+      FRAME->backBuffer[rowOffset + c]  = 0;
+      FRAME->frontBuffer[rowOffset + c] = 255;
     }
-    FRAME->backBuffer[rowOffset + width] = (TerminalPixel){ .ch = '\n', .color = 0 };
   }
-  FRAME->backBuffer[totalCells - 1] = (TerminalPixel){ .ch = '\0', .color = 0 };
 
   // - - - setup fps
   clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
@@ -111,7 +96,7 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   FRAME->actualFPS = 0;
 
   // - - - initial clear
-  frameBufferClear(FRAME, (TerminalPixel) { .color = 0, .ch = ' '});
+  frameBufferClear(FRAME, 0);
 
   JUST_LOG_INFO("[FRAME] : Frame ready");
 }
@@ -139,22 +124,66 @@ JUST_API void frameBufferRender(FrameBuffer* FRAME)
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot render in an uninitialized buffer");
 
   // - - - scan through and only write cells that changed
-  for (uint16_t y = 0; y < FRAME->size.height; ++y)
-  {
-    for (uint16_t x = 0; x < FRAME->size.width; ++x)
-    {
-      size_t        index       = y * (FRAME->size.width + 1) + x;
-      TerminalPixel backPixel   = FRAME->backBuffer[index];
-      TerminalPixel frontPixel  = FRAME->frontBuffer[index];
+  uint16_t width  = FRAME->size.width;
+  uint16_t height = FRAME->size.height;
+  uint16_t rows   = height / 2;
 
-      if (backPixel.ch != frontPixel.ch || backPixel.color != frontPixel.color)
+  for (uint16_t y = 0; y < rows; ++y)
+  {
+    for (uint16_t x = 0; x < width; ++x)
+    {
+      size_t topIndex     = (y * 2)     * width + x;
+      size_t bottomIndex  = (y * 2 + 1) * width + x;
+
+      TerminalPixel topBack     = FRAME->backBuffer[topIndex];
+      TerminalPixel bottomBack  = FRAME->backBuffer[bottomIndex];
+
+      TerminalPixel topFront    = FRAME->frontBuffer[topIndex];
+      TerminalPixel bottomFront = FRAME->frontBuffer[bottomIndex];
+
+      if (topBack != topFront || bottomBack != bottomFront)
       {
-        printf("\033[38;5;%dm\033[%d;%dH%c", 
-           backPixel.color, 
-           FRAME->position.rows + y, 
-           FRAME->position.cols + x, 
-           backPixel.ch);
-        FRAME->frontBuffer[index] = backPixel;
+      char ch[4] = " ";
+      uint8_t fg = 7;
+      uint8_t bg = 0;
+
+      bool hasTop = (topBack != 0);
+      bool hasBot = (bottomBack != 0);
+
+      if (hasTop && hasBot)
+      {
+        snprintf(ch, sizeof(ch), "▀");
+        fg = topBack;
+        bg = bottomBack;
+      }
+      else if (hasTop && !hasBot)
+      {
+        snprintf(ch, sizeof(ch), "▀");
+        fg = topBack;
+        bg = 0;
+      }
+      else if (!hasTop && hasBot)
+      {
+        snprintf(ch, sizeof(ch), "▄");
+        fg = bottomBack;
+        bg = 0;
+      }
+      else
+      {
+        snprintf(ch, sizeof(ch), " ");
+        fg = 0;
+        bg = 0;
+      }
+
+      printf("\033[38;5;%dm\033[48;5;%dm\033[%d;%dH%s", 
+             fg, bg,
+             FRAME->position.rows + y, 
+             FRAME->position.cols + x, 
+             ch);
+
+        // - - - Sync front buffer
+        FRAME->frontBuffer[topIndex]    = topBack;
+        FRAME->frontBuffer[bottomIndex] = bottomBack;
       }
     }
   }
@@ -202,12 +231,9 @@ JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalPixel PIXEL_TEMPLATE)
   {
     for (uint16_t x = 0; x < FRAME->size.width; ++x)
     {
-      size_t index = y * (FRAME->size.width + 1) + x;
-      FRAME->backBuffer[index] = PIXEL_TEMPLATE;
+      size_t index              = y * (FRAME->size.width) + x;
+      FRAME->backBuffer[index]  = PIXEL_TEMPLATE;
     }
-
-    size_t newLineIndex = y * (FRAME->size.width + 1) + FRAME->size.width;
-    FRAME->backBuffer[newLineIndex] = (TerminalPixel) { .ch  = '\n', .color = PIXEL_TEMPLATE.color };
   }
 }
 
@@ -219,7 +245,7 @@ JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, Term
   if (POSITION.x >= FRAME->size.width)  return;
   if (POSITION.y >= FRAME->size.height) return;
 
-  size_t index              = POSITION.y * (FRAME->size.width + 1) + POSITION.x;
+  size_t index              = POSITION.y * (FRAME->size.width) + POSITION.x;
   FRAME->backBuffer[index]  = PIXEL;
 }
 
