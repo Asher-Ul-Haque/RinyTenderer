@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <cglm/cglm.h>
 
 int32_t main(void)
 {
@@ -19,15 +20,17 @@ int32_t main(void)
     frameBufferSetFPS(&frame, 30);
 
     bool running = true;
+    bool paused  = false;
 
     // Triangle vertex positions
     TerminalPos a = { .x = 40, .y = 8  };
     TerminalPos b = { .x = 50, .y = 2  };
-    TerminalPos c = { .x = 60, .y = 10 };
+    TerminalPos c = { .x = 60, .y = 12 };
 
     int dx = 1;
     int dy = 1;
     float colorTime = 0.0f; // Used to smoothly cycle colors over time
+
 
     while (running)
     {
@@ -35,6 +38,10 @@ int32_t main(void)
 
         if (terminalIsKeyDown(KEY_QUIT))
             running = false;
+        if (terminalIsKeyDown(KEY_SPACE))
+            paused = !paused;
+
+        if (paused) continue;
 
         // 1. Animate the triangle position
         a.x += dx; b.x += dx; c.x += dx;
@@ -59,11 +66,12 @@ int32_t main(void)
         uint8_t green = (uint8_t)(sinf(colorTime + 2.094f) * 127.5f + 127.5f); // +120 degrees offset
         uint8_t blue  = (uint8_t)(sinf(colorTime + 4.188f) * 127.5f + 127.5f); // +240 degrees offset
 
+
         // Map RGB to our ANSI 256 color palette
-        TerminalPixel tri = terminalPixelFromColor('*', red, green, blue);
+        TerminalColor tri = terminalPixelFromColor('*', red, green, blue);
 
         // Background clear color (a very dark sleek charcoal gray)
-        TerminalPixel bg = terminalPixelFromColor('&', 15, 15, 20);
+        TerminalColor bg = terminalPixelFromColor('&', 15, 15, 20);
 
         // 4. Clear back buffer before drawing this frame
         frameBufferClear(&frame, bg);

@@ -10,7 +10,7 @@
 
 // - - - Color - - -
 
-JUST_API TerminalPixel terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B)
+JUST_API TerminalColor terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B)
 {
   // - - - Check if the color is close to grayscale
   if (R == G && G == B)
@@ -73,10 +73,10 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
     (unsigned)FRAME->size.width,
     (unsigned)FRAME->size.height);
 
-  FRAME->backBuffer = (TerminalPixel*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalPixel), "TERM_BUFFER");
+  FRAME->backBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
-  FRAME->frontBuffer = (TerminalPixel*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalPixel), "TERM_BUFFER");
+  FRAME->frontBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->frontBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
   // - - - Populate buffer with spaces, newlines at row ends and \0 at the end
@@ -135,11 +135,11 @@ JUST_API void frameBufferRender(FrameBuffer* FRAME)
       size_t topIndex     = (y * 2)     * width + x;
       size_t bottomIndex  = (y * 2 + 1) * width + x;
 
-      TerminalPixel topBack     = FRAME->backBuffer[topIndex];
-      TerminalPixel bottomBack  = FRAME->backBuffer[bottomIndex];
+      TerminalColor topBack     = FRAME->backBuffer[topIndex];
+      TerminalColor bottomBack  = FRAME->backBuffer[bottomIndex];
 
-      TerminalPixel topFront    = FRAME->frontBuffer[topIndex];
-      TerminalPixel bottomFront = FRAME->frontBuffer[bottomIndex];
+      TerminalColor topFront    = FRAME->frontBuffer[topIndex];
+      TerminalColor bottomFront = FRAME->frontBuffer[bottomIndex];
 
       if (topBack != topFront || bottomBack != bottomFront)
       {
@@ -222,7 +222,7 @@ struct timespec currentTime;
   #endif 
 }
 
-JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalPixel PIXEL_TEMPLATE)
+JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalColor PIXEL_TEMPLATE)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot clear an uninitialized buffer");
@@ -237,7 +237,7 @@ JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalPixel PIXEL_TEMPLATE)
   }
 }
 
-JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalPixel PIXEL)
+JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalColor PIXEL)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
@@ -256,7 +256,7 @@ JUST_API void frameBufferLine(
     FrameBuffer*  FRAME, 
     TerminalPos   START_POS, 
     TerminalPos   END_POS, 
-    TerminalPixel PIXEL_TEMPLATE)
+    TerminalColor PIXEL_TEMPLATE)
 {
     int x0 = START_POS.x;
     int y0 = START_POS.y;
@@ -318,7 +318,7 @@ JUST_API void frameBufferTriangle(
     TerminalPos   POINT_A, 
     TerminalPos   POINT_B, 
     TerminalPos   POINT_C, 
-    TerminalPixel PIXEL_TEMPLATE)
+    TerminalColor PIXEL_TEMPLATE)
 {
   int ax = POINT_A.x;
   int ay = POINT_A.y;

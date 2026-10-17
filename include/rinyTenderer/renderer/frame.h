@@ -4,21 +4,20 @@
  */
 
 #pragma once
-#include "justLibrary.h"
 #include <rinyTenderer/window.h>
 #include <stdint.h>
 
 /// @brief : A terminalPixel
-typedef uint8_t terminalPixel;
-typedef uint8_t TerminalPixel;
+typedef uint8_t terminalColor;
+typedef uint8_t TerminalColor;
 
 /// @brief : Say a frame in a window, a window can have multiple frames
 typedef struct framebuffer
 {
   TerminalSize    position;       ///< Where in the terminal
   TerminalSize    size;           ///< How big is the terminal, use this for operations
-  TerminalPixel*  backBuffer;     ///< Where to draw 
-  TerminalPixel*  frontBuffer;    ///< What to show
+  TerminalColor*  backBuffer;     ///< Where to draw 
+  TerminalColor*  frontBuffer;    ///< What to show
   struct timespec lastFrameTime;  ///< Last frame stat
   uint8_t         targetFPS;      ///< duh
   uint8_t         actualFPS;      ///< duh
@@ -86,7 +85,7 @@ JUST_API void frameBufferRender(FrameBuffer* FRAME);
  * @param FRAME : Which frame to clear
  * @param PIXEL_TEMPLATE : What to clear with 
  */
-JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalPixel PIXEL_TEMPLATE);
+JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalColor PIXEL_TEMPLATE);
 
 /**
  * @brief : Sets a specific pixel in the frame
@@ -94,7 +93,7 @@ JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalPixel PIXEL_TEMPLATE)
  * @param POSITION : Where
  * @param PIXEL : What
  */
-JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalPixel PIXEL);
+JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalColor PIXEL);
 
 /**
  * @brief : Draws a line in the buffer
@@ -107,7 +106,7 @@ JUST_API void frameBufferLine(
     FrameBuffer*  FRAME, 
     TerminalPos   START_POS, 
     TerminalPos   END_POS, 
-    TerminalPixel PIXEL_TEMPLATE);
+    TerminalColor PIXEL_TEMPLATE);
 
 /**
  * @brief : Draws a triangle in the buffer
@@ -122,7 +121,7 @@ JUST_API void frameBufferTriangle(
     TerminalPos   POINT_A, 
     TerminalPos   POINT_B, 
     TerminalPos   POINT_C, 
-    TerminalPixel PIXEL_TEMPLATE);
+    TerminalColor PIXEL_TEMPLATE);
 
 /**
  * @brief : Converts a char and rgb color to terminal color space 
@@ -131,4 +130,4 @@ JUST_API void frameBufferTriangle(
  * @param G : Green
  * @param B : Blue
  */
-JUST_API TerminalPixel terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B);
+JUST_API TerminalColor terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B);
