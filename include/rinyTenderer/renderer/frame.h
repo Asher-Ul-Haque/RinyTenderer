@@ -5,23 +5,48 @@
 
 #pragma once
 #include <rinyTenderer/window.h>
+#include <rinyTenderer/renderer/camera.h>
 #include <stdint.h>
 
 /// @brief : A terminalPixel
 typedef uint8_t terminalColor;
 typedef uint8_t TerminalColor;
 
+typedef struct terminalFramePos
+{
+  union 
+  {
+    uint16_t rows;
+    uint16_t height;
+    uint16_t y;
+  };
+  union
+  {
+    uint16_t cols;
+    uint16_t width;
+    uint16_t x;
+  };
+  union
+  {
+    uint16_t depth;
+    uint16_t z;
+  };
+} FramePos;
+
 /// @brief : Say a frame in a window, a window can have multiple frames
-typedef struct framebuffer
+typedef struct terminalFrame
 {
   TerminalSize    position;       ///< Where in the terminal
   TerminalSize    size;           ///< How big is the terminal, use this for operations
   TerminalColor*  backBuffer;     ///< Where to draw 
   TerminalColor*  frontBuffer;    ///< What to show
+  uint16_t*       depthBuffer;    ///< How deep
+
   struct timespec lastFrameTime;  ///< Last frame stat
   uint8_t         targetFPS;      ///< duh
   uint8_t         actualFPS;      ///< duh
-} FrameBuffer;
+  TerminalCamera  camera;         ///< The camera                                  
+} TerminalFrame;
 
 /// @brief : Pass this for the frame to occupy all the window
 #define FULLSCREEN_FRAME_SIZE (TerminalSize) { .rows = 0, .cols = 0 }
@@ -43,21 +68,21 @@ typedef struct framebuffer
  * @param SIZE : What is the size of the frame
  * @warning : CRASHES on double init or out of bounds init
  */
-JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalPos POSITION, TerminalSize SIZE);
+JUST_API void frameInit(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE);
 
 /**
  * @brief : Destroys a frame and frees memory
  * @param FRAME : Which frame to destroy 
  * @warning : CRASHES On bad frame or double destroy
  */
-JUST_API void frameBufferDestroy(FrameBuffer* FRAME);
+JUST_API void frameDestroy(TerminalFrame* FRAME);
 
 /**
  * @brief : Sets the frame target fps
  * @param FRAME : Which frame
  * @param TARGET_FPS : The actual target
  */
-JUST_API static inline void frameBufferSetFPS(FrameBuffer* FRAME, uint8_t TARGET_FPS)
+JUST_API static inline void frameSetFPS(TerminalFrame* FRAME, uint8_t TARGET_FPS)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   FRAME->targetFPS = TARGET_FPS;
@@ -68,7 +93,7 @@ JUST_API static inline void frameBufferSetFPS(FrameBuffer* FRAME, uint8_t TARGET
  * @param FRAME : Which frames fps to get
  * @return : the actual fps 
  */
-JUST_API static inline uint8_t frameBufferGetFPS(const FrameBuffer* FRAME)
+JUST_API static inline uint8_t frameGetFPS(const TerminalFrame* FRAME)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   return FRAME->actualFPS;
@@ -78,14 +103,14 @@ JUST_API static inline uint8_t frameBufferGetFPS(const FrameBuffer* FRAME)
  * @brief : Renders a frame
  * @param FRAME : Which frame to render
  */
-JUST_API void frameBufferRender(FrameBuffer* FRAME);
+JUST_API void frameRender(TerminalFrame* FRAME);
 
 /**
  * @brief : Clears a frame buffer
  * @param FRAME : Which frame to clear
  * @param PIXEL_TEMPLATE : What to clear with 
  */
-JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalColor PIXEL_TEMPLATE);
+JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE);
 
 /**
  * @brief : Sets a specific pixel in the frame
@@ -93,7 +118,7 @@ JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalColor PIXEL_TEMPLATE)
  * @param POSITION : Where
  * @param PIXEL : What
  */
-JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalColor PIXEL);
+JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalColor PIXEL);
 
 /**
  * @brief : Draws a line in the buffer
@@ -102,11 +127,11 @@ JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, Term
  * @param END_POS : The line end pos
  * @param PIXEL_TEMPLATE : Pixels this line would be made of
  */
-JUST_API void frameBufferLine(
-    FrameBuffer*  FRAME, 
-    TerminalPos   START_POS, 
-    TerminalPos   END_POS, 
-    TerminalColor PIXEL_TEMPLATE);
+JUST_API void frameLine(
+    TerminalFrame*  FRAME, 
+    FramePos        START_POS, 
+    FramePos        END_POS, 
+    TerminalColor   PIXEL_TEMPLATE);
 
 /**
  * @brief : Draws a triangle in the buffer
@@ -116,12 +141,12 @@ JUST_API void frameBufferLine(
  * @param POINT_C : Vertex C of triangle
  * @parma PIXEL_TEMPLATE : Pixels this triangle would be made of
  */
-JUST_API void frameBufferTriangle(
-    FrameBuffer*  FRAME, 
-    TerminalPos   POINT_A, 
-    TerminalPos   POINT_B, 
-    TerminalPos   POINT_C, 
-    TerminalColor PIXEL_TEMPLATE);
+JUST_API void frameTriangle(
+    TerminalFrame*  FRAME, 
+    FramePos        POINT_A, 
+    FramePos        POINT_B, 
+    FramePos        POINT_C, 
+    TerminalColor   PIXEL_TEMPLATE);
 
 /**
  * @brief : Converts a char and rgb color to terminal color space 

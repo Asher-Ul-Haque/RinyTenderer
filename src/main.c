@@ -2,6 +2,7 @@
 #include <rinyTenderer/sample.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
+#include <rinyTenderer/renderer/mesh.h> // Ensure this points to your mesh header
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
@@ -9,28 +10,69 @@
 #include <time.h>
 #include <unistd.h>
 #include <cglm/cglm.h>
+#include <cglm/struct.h>
+
+// Helper to create a 3D cube mesh using your exact mesh3DCreate signature
+static TerminalMesh createCubeMesh(void)
+{
+  justMemorySetLimit(1024 * 1024, "TERM_BUFFER");
+    TerminalMesh cube;
+    mesh3DCreate(&cube, 8, 12);
+
+    // 1. Populate Vertices
+    cube.vertices[0] = (TerminalVertex){ .position = {{ -1.0f, -1.0f, -1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[1] = (TerminalVertex){ .position = {{  1.0f, -1.0f, -1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[2] = (TerminalVertex){ .position = {{  1.0f,  1.0f, -1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[3] = (TerminalVertex){ .position = {{ -1.0f,  1.0f, -1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[4] = (TerminalVertex){ .position = {{ -1.0f, -1.0f,  1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[5] = (TerminalVertex){ .position = {{  1.0f, -1.0f,  1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[6] = (TerminalVertex){ .position = {{  1.0f,  1.0f,  1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+    cube.vertices[7] = (TerminalVertex){ .position = {{ -1.0f,  1.0f,  1.0f }}, .color = terminalPixelFromColor('#', 0, 200, 255) };
+
+    // 2. Populate Triangles (12 triangles, 2 per face)
+    TerminalTriangle tempTriangles[12] = {
+        { .indices = { 4, 5, 6 } }, { .indices = { 4, 6, 7 } }, // Front
+        { .indices = { 1, 0, 3 } }, { .indices = { 1, 3, 2 } }, // Back
+        { .indices = { 0, 4, 7 } }, { .indices = { 0, 7, 3 } }, // Left
+        { .indices = { 5, 1, 2 } }, { .indices = { 5, 2, 6 } }, // Right
+        { .indices = { 3, 7, 6 } }, { .indices = { 3, 6, 2 } }, // Top
+        { .indices = { 0, 1, 5 } }, { .indices = { 0, 5, 4 } }  // Bottom
+    };
+
+    for (size_t i = 0; i < 12; ++i)
+    {
+        cube.triangles[i] = tempTriangles[i];
+    }
+
+    // 3. Initialize Transform defaults
+    cube.transform.position = (vec3s){{ 0.0f, 0.0f, 0.0f }};
+    cube.transform.rotation = (vec3s){{ 0.0f, 0.0f, 0.0f }};
+    cube.transform.scale    = (vec3s){{ 1.0f, 1.0f, 1.0f }};
+
+    return cube;
+}
 
 int32_t main(void)
 {
     boot();
     terminalInit();
 
-    FrameBuffer frame;
-    frameBufferInit(&frame, TOP_LEFT_FRAME_POS, FULLSCREEN_FRAME_SIZE);
-    frameBufferSetFPS(&frame, 30);
+    TerminalFrame frame;
+    frameInit(&frame, TOP_LEFT_FRAME_POS, FULLSCREEN_FRAME_SIZE);
+    frameSetFPS(&frame, 30);
+
+    // Position camera back from the origin
+    cameraSetPosition(&frame.camera, (vec3s){{ 0.0f, 1.5f, 4.0f }});
+    cameraSetTarget(&frame.camera,   (vec3s){{ 0.0f, 0.0f, 0.0f }});
+
+    // Create cube using your exact API
+    TerminalMesh cube = createCubeMesh();
 
     bool running = true;
     bool paused  = false;
 
-    // Triangle vertex positions
-    TerminalPos a = { .x = 40, .y = 8  };
-    TerminalPos b = { .x = 50, .y = 2  };
-    TerminalPos c = { .x = 60, .y = 12 };
-
-    int dx = 1;
-    int dy = 1;
-    float colorTime = 0.0f; // Used to smoothly cycle colors over time
-
+    TerminalColor bg = terminalPixelFromColor(' ', 0, 0, 0);
+    float rotationAngle = 0.0f;
 
     while (running)
     {
@@ -43,47 +85,23 @@ int32_t main(void)
 
         if (paused) continue;
 
-        // 1. Animate the triangle position
-        a.x += dx; b.x += dx; c.x += dx;
-        a.y += dy; b.y += dy; c.y += dy;
+        // Animate rotation
+        rotationAngle += 0.03f;
+        cube.transform.rotation = (vec3s){{ rotationAngle * 0.5f, rotationAngle, 0.0f }};
 
-        // 2. Bounce off terminal boundaries (keeping a safety margin based on min/max coords)
-        if (a.x <= 2 || b.x <= 2 || c.x <= 2 || 
-            a.x >= frame.size.width - 2 || b.x >= frame.size.width - 2 || c.x >= frame.size.width - 2)
-        {
-            dx = -dx;
-        }
+        // Clear frame color and depth buffers
+        frameClear(&frame, bg);
 
-        if (a.y <= 2 || b.y <= 2 || c.y <= 2 || 
-            a.y >= frame.size.height - 2 || b.y >= frame.size.height - 2 || c.y >= frame.size.height - 2)
-        {
-            dy = -dy;
-        }
+        // Draw mesh through the depth-tested pipeline
+        frameDrawMesh(&frame, &cube, false);
 
-        // 3. Smooth, vibrant color cycling using sine waves scaled to [0, 255]
-        colorTime += 0.05f;
-        uint8_t red   = (uint8_t)(sinf(colorTime + 0.0f) * 127.5f + 127.5f);
-        uint8_t green = (uint8_t)(sinf(colorTime + 2.094f) * 127.5f + 127.5f); // +120 degrees offset
-        uint8_t blue  = (uint8_t)(sinf(colorTime + 4.188f) * 127.5f + 127.5f); // +240 degrees offset
-
-
-        // Map RGB to our ANSI 256 color palette
-        TerminalColor tri = terminalPixelFromColor('*', red, green, blue);
-
-        // Background clear color (a very dark sleek charcoal gray)
-        TerminalColor bg = terminalPixelFromColor('&', 15, 15, 20);
-
-        // 4. Clear back buffer before drawing this frame
-        frameBufferClear(&frame, bg);
-
-        // 5. Draw the triangle onto the back buffer
-        frameBufferTriangle(&frame, a, b, c, tri);
-
-        // 6. Render changes to screen (differential swap)
-        frameBufferRender(&frame);
+        // Render frame to terminal
+        frameRender(&frame);
     }
 
-    frameBufferDestroy(&frame);
+    // Cleanup using your exact destroy signature
+    mesh3DDestroy(&cube);
+    frameDestroy(&frame);
     terminalShutdown();
 
     return 0;

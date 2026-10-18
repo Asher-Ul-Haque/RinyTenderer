@@ -1,7 +1,10 @@
 #include "cglm/struct/mat4.h"
 #include "cglm/types-struct.h"
 #include "justLibrary.h"
+#include "rinyTenderer/renderer/camera.h"
+#include "rinyTenderer/renderer/frame.h"
 #include <rinyTenderer/renderer/mesh.h>
+#include <stdint.h>
 
 JUST_API void mesh3DCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIANGLE_COUNT)
 {
@@ -63,21 +66,113 @@ JUST_LOCAL static inline mat4s mesh3DGetModelMatrix(const TerminalMesh* MESH)
   return model;
 }
 
-JUST_API void frameBufferDrawMesh(FrameBuffer *FRAME, const TerminalMesh *MESH)
+JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG(MESH  != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(MESH->vertices != NULL, "[MESH] : Cannot draw a mesh with no vertices");
 
-  mat4s modelMatrix = mesh3DGetModelMatrix(MESH);
+  mat4s modelMatrix = mesh3DGetModelMatrix(MESH);  
+  mat4s viewMatrix  = camera3DGetViewMatrix(&FRAME->camera);
+  mat4s projMatrix  = camera3DGetProjectionMatrix(&FRAME->camera);
 
+  // - - - MVP  = Proj * View * Model
+  mat4s viewXmodel = glms_mat4_mul(viewMatrix, modelMatrix);
+  mat4s mvpMatrix  = glms_mat4_mul(projMatrix, viewXmodel);
+
+  typedef struct projectedVertex
+  {
+    FramePos  pos;
+    bool      visible;
+  } ProjectedVertex;
+
+  ProjectedVertex projected[MESH->vertexCount];
+
+  // - - - Transform and project all vertices
   for (size_t i = 0; i < MESH->vertexCount; ++i)
   {
     vec3s localPos  = MESH->vertices[i].position;
     vec4s localPos4 = glms_vec4(localPos, 1.0f);
-    vec4s worldPos4 = glms_mat4_mulv(modelMatrix, localPos4);
+    vec4s clipPos4  = glms_mat4_mulv(mvpMatrix, localPos4);
 
-    TODO_COMMENT("Add camera / view transform, projection and rasterization");
-    (void) worldPos4;
+    // - - - Near plane clipping check (behind camera or w <= 0)
+    if (clipPos4.w <= 0.0f)
+    {
+      JUST_LOG_DEBUG("[VERTEX %zu] CULLED: w <= 0 (w = %.2f)", i, clipPos4.w);
+      projected[i].visible = false;
+      continue;
+    }
+
+    // - - - Perspective division -> NDC coords
+    float ndcX = clipPos4.x / clipPos4.w;
+    float ndcY = clipPos4.y / clipPos4.w;
+    float ndcZ = clipPos4.z / clipPos4.w;
+
+    // - - - Frustrum check
+    if (ndcX < -1.0f || ndcX > 1.0f || ndcY < -1.0f || ndcY > 1.0f || ndcZ < -1.0f || ndcZ > 1.0f)
+    {
+      projected[i].visible = false;
+      continue;
+    }
+
+    // - - - viewport mapping to frame pixel grid
+    float screenX = (ndcX + 1.0f) * 0.5f * (float) FRAME->size.cols;
+    float screenY = (1.0f - ndcY) * 0.5f * (float) FRAME->size.rows;
+
+    // - - - Map normalized depth to uint16_t depth range
+    float     normalizedZ = (ndcZ + 1.0f) * 0.5f;
+    uint16_t  depth16     = normalizedZ * 65535.0f;
+
+    projected[i].pos.x    = screenX;
+    projected[i].pos.y    = screenY;
+    projected[i].pos.z    = depth16;
+    projected[i].visible  = true;
   }
+
+  // - - - Rasterize mesh triangles into the depth buffer
+  for (size_t i = 0; i < MESH->triangleCount; ++i)
+  {
+    TerminalTriangle tri = MESH->triangles[i];
+
+    uint16_t i0 = tri.indices[0];
+    uint16_t i1 = tri.indices[1];
+    uint16_t i2 = tri.indices[2];
+
+    if (i0 >= MESH->vertexCount || i1 >= MESH->vertexCount || i2 >= MESH->vertexCount) continue;
+
+    // - - - Draw triangle if all 3 vertices are visible within the frustum
+    if (projected[i0].visible && projected[i1].visible && projected[i2].visible)
+    {
+      TerminalColor pixelColor = terminalPixelFromColor('#', 255, 200, 255);
+
+      if (WIREFRAME)
+      {
+        frameLine(
+            FRAME,
+            projected[i0].pos,
+            projected[i1].pos,
+            pixelColor);
+        frameLine(
+            FRAME,
+            projected[i1].pos,
+            projected[i2].pos,
+            pixelColor);
+        frameLine(
+            FRAME,
+            projected[i2].pos,
+            projected[i0].pos,
+            pixelColor);
+      }
+      else
+      {
+        frameTriangle(
+            FRAME,
+            projected[i0].pos,
+            projected[i1].pos,
+            projected[i2].pos,
+            pixelColor);
+      }
+    }
+  }
+
 }

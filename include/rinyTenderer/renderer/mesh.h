@@ -37,4 +37,4 @@ JUST_API void mesh3DCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIAN
 
 JUST_API void mesh3DDestroy(TerminalMesh* MESH);
 
-JUST_API void frameBufferDrawMesh(FrameBuffer* FRAME, const TerminalMesh* MESH);
+JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME);

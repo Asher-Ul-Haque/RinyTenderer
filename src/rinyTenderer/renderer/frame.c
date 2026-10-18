@@ -1,3 +1,4 @@
+#include "rinyTenderer/renderer/camera.h"
 #include <bits/time.h>
 #include <justLibrary.h>
 #include <rinyTenderer/window.h>
@@ -36,7 +37,7 @@ JUST_API TerminalColor terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, u
 
 // - - - Create and Destroy - - - 
 
-JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, TerminalSize SIZE)
+JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSize SIZE)
 {
   JUST_LOG_DEBUG("[FRAME] : Creating a new frame");
 
@@ -79,6 +80,9 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   FRAME->frontBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->frontBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
+  FRAME->depthBuffer = (uint16_t*) JUST_MALLOC_TAGGED(totalCells * sizeof(uint16_t), "TERM_BUFFER");
+  JUST_ASSERT_MESSAGE(FRAME->depthBuffer != NULL, "[FRAME] : Allocation for this frame failed");
+
   // - - - Populate buffer with spaces, newlines at row ends and \0 at the end
   for (uint16_t r = 0; r < height; ++r)
   {
@@ -86,7 +90,8 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
     for (uint16_t c = 0; c < width; ++c)
     {
       FRAME->backBuffer[rowOffset + c]  = 0;
-      FRAME->frontBuffer[rowOffset + c] = 255;
+      FRAME->frontBuffer[rowOffset + c] = 0xFF;
+      FRAME->depthBuffer[rowOffset + c] = 0xFFFF;
     }
   }
 
@@ -95,13 +100,18 @@ JUST_API void frameBufferInit(FrameBuffer* FRAME, TerminalSize POSITION, Termina
   FRAME->targetFPS = 30;
   FRAME->actualFPS = 0;
 
+  // - - - setup camera
+  cameraInit(&FRAME->camera);
+  float aspectRatio = (float) FRAME->size.cols / (float) FRAME->size.rows;
+  cameraSetAspectRatio(&FRAME->camera, aspectRatio);
+
   // - - - initial clear
-  frameBufferClear(FRAME, 0);
+  frameClear(FRAME, 0);
 
   JUST_LOG_INFO("[FRAME] : Frame ready");
 }
 
-JUST_API void frameBufferDestroy(FrameBuffer* FRAME)
+JUST_API void frameDestroy(TerminalFrame* FRAME)
 {
   JUST_LOG_DEBUG("[FRAME] : Destroying a FRAME");
 
@@ -109,8 +119,10 @@ JUST_API void frameBufferDestroy(FrameBuffer* FRAME)
 
   JUST_FREE(FRAME->backBuffer);
   JUST_FREE(FRAME->frontBuffer);
+  JUST_FREE(FRAME->depthBuffer);
   FRAME->backBuffer  = NULL;
   FRAME->frontBuffer = NULL;
+  FRAME->depthBuffer = NULL;
 
   JUST_LOG_INFO("[FRAME] : Destroyed");
 }
@@ -118,7 +130,7 @@ JUST_API void frameBufferDestroy(FrameBuffer* FRAME)
 
 // - - - Render and clear - - - 
 
-JUST_API void frameBufferRender(FrameBuffer* FRAME)
+JUST_API void frameRender(TerminalFrame* FRAME)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot render in an uninitialized buffer");
@@ -190,39 +202,30 @@ JUST_API void frameBufferRender(FrameBuffer* FRAME)
   fflush(stdout);
 
   // - - - update timer
-struct timespec currentTime;
-    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+  struct timespec currentTime;
+  clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
-    uint64_t targetNs  = FRAME->targetFPS > 0 ? 1000000000L / FRAME->targetFPS : 1;
-    uint64_t elapsedNs = (currentTime.tv_sec  - FRAME->lastFrameTime.tv_sec) * 1000000000L +
-                         (currentTime.tv_nsec - FRAME->lastFrameTime.tv_nsec);
+  uint64_t targetNs  = FRAME->targetFPS > 0 ? 1000000000L / FRAME->targetFPS : 1;
+  uint64_t elapsedNs = (currentTime.tv_sec  - FRAME->lastFrameTime.tv_sec) * 1000000000L +
+                       (currentTime.tv_nsec - FRAME->lastFrameTime.tv_nsec);
 
-    if (elapsedNs == 0) elapsedNs = 1;
-    uint8_t instantFPS  = (uint8_t)(1000000000ULL / elapsedNs);
-    FRAME->actualFPS    = (FRAME->actualFPS == 0) ? instantFPS : (uint8_t)((FRAME->actualFPS * 4 + instantFPS) / 5);
+  if (elapsedNs == 0) elapsedNs = 1;
+  uint8_t instantFPS  = (uint8_t)(1000000000ULL / elapsedNs);
+  FRAME->actualFPS    = (FRAME->actualFPS == 0) ? instantFPS : (uint8_t)((FRAME->actualFPS * 4 + instantFPS) / 5);
 
-    if (elapsedNs < targetNs)
-    {
-      struct timespec sleepTime = 
-        { 
-          .tv_sec = 0, 
-          .tv_nsec = targetNs - elapsedNs 
-        };
-      nanosleep(&sleepTime, NULL);
-    }
-    clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
-
-  #ifdef DEBUG
-    static uint8_t frame = 0;
-    frame++;
-    if (frame % 30 == 0)
-    {
-      JUST_LOG_DEBUG("FPS : %d", FRAME->actualFPS);
-    }
-  #endif 
+  if (elapsedNs < targetNs)
+  {
+    struct timespec sleepTime = 
+    { 
+      .tv_sec  = 0, 
+      .tv_nsec = targetNs - elapsedNs 
+    };
+    nanosleep(&sleepTime, NULL);
+  }
+  clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
 }
 
-JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalColor PIXEL_TEMPLATE)
+JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot clear an uninitialized buffer");
@@ -233,11 +236,12 @@ JUST_API void frameBufferClear(FrameBuffer* FRAME, TerminalColor PIXEL_TEMPLATE)
     {
       size_t index              = y * (FRAME->size.width) + x;
       FRAME->backBuffer[index]  = PIXEL_TEMPLATE;
+      FRAME->depthBuffer[index] = 0xFFFF;
     }
   }
 }
 
-JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, TerminalColor PIXEL)
+JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalColor PIXEL)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
@@ -246,62 +250,73 @@ JUST_API void frameBufferSetPixel(FrameBuffer* FRAME, TerminalPos POSITION, Term
   if (POSITION.y >= FRAME->size.height) return;
 
   size_t index              = POSITION.y * (FRAME->size.width) + POSITION.x;
+  if (POSITION.depth > FRAME->depthBuffer[index]) return;
+
   FRAME->backBuffer[index]  = PIXEL;
 }
 
 
 // - - - Geometry - - - 
 
-JUST_API void frameBufferLine(
-    FrameBuffer*  FRAME, 
-    TerminalPos   START_POS, 
-    TerminalPos   END_POS, 
-    TerminalColor PIXEL_TEMPLATE)
+JUST_API void frameLine(
+    TerminalFrame*  FRAME, 
+    FramePos        START_POS, 
+    FramePos        END_POS, 
+    TerminalColor   PIXEL_TEMPLATE)
 {
-    int x0 = START_POS.x;
-    int y0 = START_POS.y;
-    int x1 = END_POS.x;
-    int y1 = END_POS.y;
+  int x0 = START_POS.x;
+  int y0 = START_POS.y;
+  int x1 = END_POS.x;
+  int y1 = END_POS.y;
+  int z0 = START_POS.depth;
+  int z1 = END_POS.depth;
 
-    // - - - Handle steep lines by swapping the axes.
-    bool steep = abs(y1 - y0) > abs(x1 - x0);
-    if (steep)
-    {
-      int temp  = x0;
-      x0        = y0;
-      y0        = temp;
+  // - - - Handle steep lines by swapping the axes.
+  bool steep = abs(y1 - y0) > abs(x1 - x0);
+  if (steep)
+  {
+    int temp  = x0;
+    x0        = y0;
+    y0        = temp;
 
-      temp      = x1;
-      x1        = y1;
-      y1        = temp;
-    }
+    temp      = x1;
+    x1        = y1;
+    y1        = temp;
+  }
 
-    // - - - Iterate from left to right.
-    if (x0 > x1)
-    {
-      int temp  = x0;
-      x0        = x1;
-      x1        = temp;
+  // - - - Iterate from left to right.
+  if (x0 > x1)
+  {
+    int temp  = x0;
+    x0        = x1;
+    x1        = temp;
 
-      temp      = y0;
-      y0        = y1;
-      y1        = temp;
-    }
+    temp      = y0;
+    y0        = y1;
+    y1        = temp;
 
-    int dx    = x1 - x0;
-    int dy    = abs(y1 - y0);
-    int error = dx / 2;
-    int ystep = (y0 < y1) ? 1 : -1;
-    int y     = y0;
+    temp      = z0;
+    z0        = z1;
+    z1        = temp;
+  }
+
+  int dx          = x1 - x0;
+  int dy          = abs(y1 - y0);
+  int error       = dx / 2;
+  int ystep       = (y0 < y1) ? 1 : -1;
+  int y           = y0;
+  int totalSteps  = (dx > 0) ? dx : 1;
 
   for (int x = x0; x <= x1; x++)
   {
-    TerminalSize position = 
+    int currentZ = z0 + ((z1 - z0) * (x - x0)) / totalSteps;
+    FramePos position = 
     {
       .x = steep ? y : x,
-      .y = steep ? x : y
+      .y = steep ? x : y,
+      .z = (uint16_t) currentZ
     };
-    frameBufferSetPixel(FRAME, position, PIXEL_TEMPLATE);
+    frameSetPixel(FRAME, position, PIXEL_TEMPLATE);
 
     error -= dy;
     if (error < 0)
@@ -313,19 +328,24 @@ JUST_API void frameBufferLine(
 }
 
 
-JUST_API void frameBufferTriangle(
-    FrameBuffer*  FRAME, 
-    TerminalPos   POINT_A, 
-    TerminalPos   POINT_B, 
-    TerminalPos   POINT_C, 
-    TerminalColor PIXEL_TEMPLATE)
+JUST_API void frameTriangle(
+    TerminalFrame*  FRAME, 
+    FramePos        POINT_A, 
+    FramePos        POINT_B, 
+    FramePos        POINT_C, 
+    TerminalColor   PIXEL_TEMPLATE)
 {
   int ax = POINT_A.x;
   int ay = POINT_A.y;
+  int az = POINT_A.z;
+
   int bx = POINT_B.x;
   int by = POINT_B.y;
+  int bz = POINT_B.z;
+
   int cx = POINT_C.x;
   int cy = POINT_C.y;
+  int cz = POINT_C.z;
 
   // - - - bubble sort
   if (ay > by)
@@ -337,6 +357,10 @@ JUST_API void frameBufferTriangle(
     temp  = ay;
     ay    = by;
     by    = temp;
+
+    temp  = az;
+    az    = cz;
+    cz    = temp;
   }
   if (ay > cy)
   {
@@ -347,6 +371,10 @@ JUST_API void frameBufferTriangle(
     temp  = ay;
     ay    = cy;
     cy    = temp;
+
+    temp  = az;
+    az    = cz;
+    cz    = temp;
   }
   if (by > cy)
   {
@@ -357,8 +385,14 @@ JUST_API void frameBufferTriangle(
     temp  = by;
     by    = cy;
     cy    = temp;
+
+    temp  = bz;
+    bz    = cz;
+    cz    = temp;
   }
+
   int height = cy - ay;
+  if (height == 0) return; // - - - Degenerate triangle
 
   // - - - bottom half
   if (ay != by)
@@ -367,24 +401,43 @@ JUST_API void frameBufferTriangle(
     int segmentHeight = by - ay;
     for (int y = ay; y <= by; ++y)
     {
-      int x1        = ax + ((cx - ax) * (y - ay)) / height;
-      int x2        = ax + ((bx - ax) * (y - ay)) / segmentHeight;
+      // - - - Interpolate X and Z along edge AC (long side)
+      int x1 = ax + ((cx - ax) * (y - ay)) / height;
+      int z1 = az + ((cz - az) * (y - ay)) / height;
+
+      int x2 = ax + ((bx - ax) * (y - ay)) / segmentHeight;
+      int z2 = az + ((bz - az) * (y - ay)) / segmentHeight;
 
       int minX, maxX;
+      int minZ, maxZ;
       if (x1 > x2)
       {
-        minX = x2;
-        maxX = x1;
+        minX = x2; minZ = z2;
+        maxX = x1; maxZ = z1;
       }
       else
       {
-        minX = x1;
-        maxX = x2;
+        minX = x1; minZ = z1;
+        maxX = x2; maxZ = z2;
       }
 
+      int width = maxX - minX;
       for (int x = minX; x <= maxX; ++x)
       {
-        frameBufferSetPixel(FRAME, (TerminalPos){.x = x, .y = y}, PIXEL_TEMPLATE);
+        int currentZ = minZ;
+        if (width > 0)
+        {
+          currentZ = minZ + ((maxZ - minZ) * (x - minX)) / width;
+        }
+
+        FramePos pos = 
+        {
+          .x = x,
+          .y = y,
+          .z = currentZ
+        };
+
+        frameSetPixel(FRAME, pos, PIXEL_TEMPLATE);
       }
     }
   }
@@ -396,24 +449,41 @@ JUST_API void frameBufferTriangle(
     int segmentHeight = cy - by;
     for (int y = by; y <= cy; ++y)
     {
-      int x1        = ax + ((cx - ax) * (y - ay)) / height;
-      int x2        = bx + ((cx - bx) * (y - by)) / segmentHeight;
+      int x1 = ax + ((cx - ax) * (y - ay)) / height;
+      int x2 = bx + ((cx - bx) * (y - by)) / segmentHeight;
+
+      int z1 = az + ((cz - az) * (y - ay)) / height;
+      int z2 = bz + ((cz - bz) * (y - by)) / segmentHeight;
 
       int minX, maxX;
+      int minZ, maxZ;
       if (x1 > x2)
       {
-        minX = x2;
-        maxX = x1;
+        minX = x2; minZ = z2;
+        maxX = x1; maxZ = z1;
       }
       else
       {
-        minX = x1;
-        maxX = x2;
+        minX = x1; minZ = z1;
+        maxX = x2; maxZ = z2;
       }
 
+      int width = maxX - minX;
       for (int x = minX; x <= maxX; ++x)
       {
-        frameBufferSetPixel(FRAME, (TerminalPos){.x = x, .y = y}, PIXEL_TEMPLATE);
+        int currentZ = minZ;
+        if (width > 0) 
+        {
+          currentZ = minZ + ((maxZ - minZ) * (x - minX)) / width;
+        }
+
+        FramePos pos = 
+        {
+          .x = x,
+          .y = y,
+          .z = currentZ
+        };
+        frameSetPixel(FRAME, pos, PIXEL_TEMPLATE);
       }
     }
   }
