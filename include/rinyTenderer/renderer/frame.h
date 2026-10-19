@@ -6,11 +6,8 @@
 #pragma once
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/camera.h>
+#include <rinyTenderer/renderer/light.h>
 #include <stdint.h>
-
-/// @brief : A terminalPixel
-typedef uint8_t terminalColor;
-typedef uint8_t TerminalColor;
 
 typedef struct terminalFramePos
 {
@@ -33,6 +30,8 @@ typedef struct terminalFramePos
   };
 } FramePos;
 
+#define MAX_FRAME_LIGHTS 5
+
 /// @brief : Say a frame in a window, a window can have multiple frames
 typedef struct terminalFrame
 {
@@ -46,6 +45,13 @@ typedef struct terminalFrame
   uint8_t         targetFPS;      ///< duh
   uint8_t         actualFPS;      ///< duh
   TerminalCamera  camera;         ///< The camera                                  
+
+  RGBcolor  ambientColor;               ///< Global ambient color
+  float     ambientIntensity;           ///< Global ambient intensity multiplier
+  TerminalLight directionalLights[MAX_FRAME_LIGHTS];   ///< Fixed array of light sources
+  TerminalLight pointLights[MAX_FRAME_LIGHTS];         ///< Fixed array of light sources                                                       
+  uint8_t       directionalLightCount;                 ///< How many lights
+  uint8_t       pointLightCount;                       ///< How many point lights                                                       
 } TerminalFrame;
 
 /// @brief : Pass this for the frame to occupy all the window
@@ -150,9 +156,18 @@ JUST_API void frameTriangle(
 
 /**
  * @brief : Converts a char and rgb color to terminal color space 
- * @param CHAR : The char
  * @param R : Red
  * @param G : Green
  * @param B : Blue
  */
-JUST_API TerminalColor terminalPixelFromColor(char CHAR, uint8_t R, uint8_t G, uint8_t B);
+JUST_API TerminalColor terminalColorFromRGB(uint8_t R, uint8_t G, uint8_t B);
+
+typedef uint8_t TerminalLightIndex;
+
+JUST_API TerminalLightIndex frameAddDirectionalLight(TerminalFrame* FRAME, TerminalLight LIGHT);
+
+JUST_API TerminalLightIndex frameAddPointLight(TerminalFrame* FRAME, TerminalLight LIGHT);
+
+JUST_API void frameRemoveDirectionalLight(TerminalFrame* FRAME, TerminalLightIndex INDEX);
+
+JUST_API void frameRemovePointLight(TerminalFrame* FRAME, TerminalLightIndex INDEX);

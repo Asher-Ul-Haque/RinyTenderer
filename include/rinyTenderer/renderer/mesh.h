@@ -5,8 +5,8 @@
 
 typedef struct terminalVertex3D
 {
-  vec3s         position; ///< 3D coordinates in model space (x, y, z)
-  TerminalColor color;    ///< Base color or vertex attribute
+  vec3s    position; ///< 3D coordinates in model space (x, y, z)
+  RGBcolor color;    ///< Base color or vertex attribute
 } TerminalVertex;
 
 typedef struct terminalTriangle3D

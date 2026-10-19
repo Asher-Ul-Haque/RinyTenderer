@@ -138,41 +138,120 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
     uint16_t i1 = tri.indices[1];
     uint16_t i2 = tri.indices[2];
 
-    if (i0 >= MESH->vertexCount || i1 >= MESH->vertexCount || i2 >= MESH->vertexCount) continue;
+    if (i0 >= MESH->vertexCount) continue;
+    if (i1 >= MESH->vertexCount) continue;
+    if (i2 >= MESH->vertexCount) continue;
 
     // - - - Draw triangle if all 3 vertices are visible within the frustum
-    if (projected[i0].visible && projected[i1].visible && projected[i2].visible)
-    {
-      TerminalColor pixelColor = terminalPixelFromColor('#', 255, 200, 255);
+    if (!projected[i0].visible) continue;
+    if (!projected[i1].visible) continue; 
+    if (!projected[i2].visible) continue;
 
-      if (WIREFRAME)
+    // - - - Backface culling
+    int x0 = projected[i0].pos.x;
+    int y0 = projected[i0].pos.y;
+    int x1 = projected[i1].pos.x;
+    int y1 = projected[i1].pos.y;
+    int x2 = projected[i2].pos.x;
+    int y2 = projected[i2].pos.y;
+
+    int32_t crossProduct = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
+    if (crossProduct > 0) continue;
+
+    // - - - Flat shading
+    vec4s p0World4 = glms_mat4_mulv(modelMatrix, glms_vec4(MESH->vertices[i0].position, 1.0f));
+    vec4s p1World4 = glms_mat4_mulv(modelMatrix, glms_vec4(MESH->vertices[i1].position, 1.0f));
+    vec4s p2World4 = glms_mat4_mulv(modelMatrix, glms_vec4(MESH->vertices[i2].position, 1.0f));
+
+    vec3s p0World = {{ p0World4.x, p0World4.y, p0World4.z }};
+    vec3s p1World = {{ p1World4.x, p1World4.y, p1World4.z }};
+    vec3s p2World = {{ p2World4.x, p2World4.y, p2World4.z }};
+
+    vec3s edge1   = glms_vec3_sub(p1World, p0World);
+    vec3s edge2   = glms_vec3_sub(p2World, p0World);
+    vec3s normal  = glms_vec3_normalize(glms_vec3_cross(edge1, edge2));
+
+    vec3s triCenter = 
+    {{ 
+       (p0World.x + p1World.x + p2World.x) / 3.0f, 
+       (p0World.y + p1World.y + p2World.y) / 3.0f, 
+       (p0World.z + p1World.z + p2World.z) / 3.0f 
+    }};
+
+    RGBcolor  base      = MESH->vertices[i0].color;
+    int       totalRed  = base.r * FRAME->ambientColor.r * FRAME->ambientIntensity;
+    int       totalGreen = base.g * FRAME->ambientColor.g * FRAME->ambientIntensity;
+    int       totalBlue = base.b * FRAME->ambientColor.b * FRAME->ambientIntensity;
+
+    int factor = 255 * 255 * 255;
+    for (uint8_t i = 0; i < FRAME->directionalLightCount; ++i)
+    {
+      TerminalLight light = FRAME->directionalLights[i];
+      int diffuse = 0;
+
+      vec3s lightDir  = glms_vec3_negate(light.direction);
+      float dot       = glms_vec3_dot(normal, lightDir);
+      if (dot > 0.0f) diffuse = (int) (dot * 255);
+
+
+      totalRed    += (base.r * light.color.r * light.intensity * diffuse) / factor;
+      totalGreen  += (base.g * light.color.g * light.intensity * diffuse) / factor;
+      totalBlue   += (base.b * light.color.b * light.intensity * diffuse) / factor;
+    }
+
+    for (uint8_t i = 0; i < FRAME->pointLightCount; ++i)
+    {
+      TerminalLight light = FRAME->pointLights[i];
+      int diffuse = 0;
+
+      vec3s lightVec = glms_vec3_sub(light.position, triCenter);
+      float distance = glms_vec3_norm(lightVec);
+      vec3s lightDir = glms_vec3_scale(lightVec, 1.0f / (distance + 0.0001f));
+
+      float dot = glms_vec3_dot(normal, lightDir);
+      if (dot > 0.0f)
       {
-        frameLine(
-            FRAME,
-            projected[i0].pos,
-            projected[i1].pos,
-            pixelColor);
-        frameLine(
-            FRAME,
-            projected[i1].pos,
-            projected[i2].pos,
-            pixelColor);
-        frameLine(
-            FRAME,
-            projected[i2].pos,
-            projected[i0].pos,
-            pixelColor);
+        float attenuation = 1.0f / (1.0f + 0.1f * distance + 0.01f * (distance * distance));
+        diffuse = dot * attenuation * 255;
       }
-      else
-      {
-        frameTriangle(
-            FRAME,
-            projected[i0].pos,
-            projected[i1].pos,
-            projected[i2].pos,
-            pixelColor);
-      }
+
+      totalRed    += (base.r * light.color.r * light.intensity * diffuse) / factor;
+      totalGreen  += (base.g * light.color.g * light.intensity * diffuse) / factor;
+      totalBlue   += (base.b * light.color.b * light.intensity * diffuse) / factor;
+    }
+
+    uint8_t finalR = totalRed   > 255 ? 255 : (uint8_t) totalRed;
+    uint8_t finalG = totalGreen > 255 ? 255 : (uint8_t) totalGreen;
+    uint8_t finalB = totalBlue  > 255 ? 255 : (uint8_t) totalBlue;
+
+    TerminalColor pixelColor = terminalColorFromRGB(finalR, finalG, finalB);
+
+    if (WIREFRAME)
+    {
+      frameLine(
+          FRAME,
+          projected[i0].pos,
+          projected[i1].pos,
+          pixelColor);
+      frameLine(
+          FRAME,
+          projected[i1].pos,
+          projected[i2].pos,
+          pixelColor);
+      frameLine(
+          FRAME,
+          projected[i2].pos,
+          projected[i0].pos,
+          pixelColor);
+    }
+    else
+    {
+      frameTriangle(
+          FRAME,
+          projected[i0].pos,
+          projected[i1].pos,
+          projected[i2].pos,
+          pixelColor);
     }
   }
-
 }
