@@ -7,66 +7,29 @@
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/camera.h>
 #include <rinyTenderer/renderer/light.h>
+#include <rinyTenderer/renderer/_structs.h>
 #include <stdint.h>
 
-typedef struct terminalFramePos
-{
-  union 
-  {
-    uint16_t rows;
-    uint16_t height;
-    uint16_t y;
-  };
-  union
-  {
-    uint16_t cols;
-    uint16_t width;
-    uint16_t x;
-  };
-  union
-  {
-    uint16_t depth;
-    uint16_t z;
-  };
-} FramePos;
 
-#define MAX_FRAME_LIGHTS 5
 
-/// @brief : Say a frame in a window, a window can have multiple frames
-typedef struct terminalFrame
-{
-  TerminalSize    position;       ///< Where in the terminal
-  TerminalSize    size;           ///< How big is the terminal, use this for operations
-  TerminalColor*  backBuffer;     ///< Where to draw 
-  TerminalColor*  frontBuffer;    ///< What to show
-  uint16_t*       depthBuffer;    ///< How deep
-
-  struct timespec lastFrameTime;  ///< Last frame stat
-  uint8_t         targetFPS;      ///< duh
-  uint8_t         actualFPS;      ///< duh
-  TerminalCamera  camera;         ///< The camera                                  
-
-  RGBcolor  ambientColor;               ///< Global ambient color
-  float     ambientIntensity;           ///< Global ambient intensity multiplier
-  TerminalLight directionalLights[MAX_FRAME_LIGHTS];   ///< Fixed array of light sources
-  TerminalLight pointLights[MAX_FRAME_LIGHTS];         ///< Fixed array of light sources                                                       
-  uint8_t       directionalLightCount;                 ///< How many lights
-  uint8_t       pointLightCount;                       ///< How many point lights                                                       
-} TerminalFrame;
 
 /// @brief : Pass this for the frame to occupy all the window
-#define FULLSCREEN_FRAME_SIZE (TerminalSize) { .rows = 0, .cols = 0 }
+#define FULLSCREEN_FRAME_SIZE (TerminalPos) { .cols = 0, .rows = 0 }
 
 /// @brief : Pass this for the frame to be at the top left of the window 
-#define TOP_LEFT_FRAME_POS (TerminalPos) { .rows = 1, .cols = 1 } 
+#define TOP_LEFT_FRAME_POS (TerminalPos) { .x = 1, .y = 1 } 
 
 /// @brief : No limits on fps, I paid for the entire CPU
 #define UNCAPPED_FRAME_FPS 0
+
+/// @brief : default target fps 
 #define DEFAULT_TARGET_FPS 30
+
 
 // - - - | API | - - -
 
 
+// - - - Life cycle
 /**
  * @brief : Initializes the frame buffer and allocates memory
  * @param FRAME : Which frame to initialize
@@ -74,7 +37,7 @@ typedef struct terminalFrame
  * @param SIZE : What is the size of the frame
  * @warning : CRASHES on double init or out of bounds init
  */
-JUST_API void frameInit(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE);
+JUST_API void frameCreate(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE);
 
 /**
  * @brief : Destroys a frame and frees memory
@@ -83,6 +46,8 @@ JUST_API void frameInit(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize
  */
 JUST_API void frameDestroy(TerminalFrame* FRAME);
 
+
+// - - - FPS
 /**
  * @brief : Sets the frame target fps
  * @param FRAME : Which frame
@@ -105,6 +70,8 @@ JUST_API static inline uint8_t frameGetFPS(const TerminalFrame* FRAME)
   return FRAME->actualFPS;
 }
 
+
+// - - - Draw and clear
 /**
  * @brief : Renders a frame
  * @param FRAME : Which frame to render
@@ -118,6 +85,7 @@ JUST_API void frameRender(TerminalFrame* FRAME);
  */
 JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE);
 
+// - - - Basic geometry
 /**
  * @brief : Sets a specific pixel in the frame
  * @param FRAME : Which frame
@@ -154,6 +122,7 @@ JUST_API void frameTriangle(
     FramePos        POINT_C, 
     TerminalColor   PIXEL_TEMPLATE);
 
+// - - - Color and light
 /**
  * @brief : Converts a char and rgb color to terminal color space 
  * @param R : Red
@@ -162,12 +131,3 @@ JUST_API void frameTriangle(
  */
 JUST_API TerminalColor terminalColorFromRGB(uint8_t R, uint8_t G, uint8_t B);
 
-typedef uint8_t TerminalLightIndex;
-
-JUST_API TerminalLightIndex frameAddDirectionalLight(TerminalFrame* FRAME, TerminalLight LIGHT);
-
-JUST_API TerminalLightIndex frameAddPointLight(TerminalFrame* FRAME, TerminalLight LIGHT);
-
-JUST_API void frameRemoveDirectionalLight(TerminalFrame* FRAME, TerminalLightIndex INDEX);
-
-JUST_API void frameRemovePointLight(TerminalFrame* FRAME, TerminalLightIndex INDEX);

@@ -1,40 +1,26 @@
 #pragma once
-#include "justLibrary.h"
+#include <justLibrary.h>
 #include <cglm/struct.h>
-#include <rinyTenderer/renderer/frame.h>
+#include <rinyTenderer/renderer/_structs.h>
 
-typedef struct terminalVertex3D
-{
-  vec3s    position; ///< 3D coordinates in model space (x, y, z)
-  RGBcolor color;    ///< Base color or vertex attribute
-} TerminalVertex;
+/**
+ * @brief : Creates a new mesh
+ * @param MESH : Which mesh to init
+ * @param VERTEX_COUNT : How many vertices
+ * @param TRIANGLE_COUNT : How many triangles
+ */
+JUST_API void meshCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIANGLE_COUNT);
 
-typedef struct terminalTriangle3D
-{
-  uint16_t indices[3];  ///< Indices to the terminal 
-} TerminalTriangle;
+/**
+ * @brief : Destroy a mesh
+ * @param MESH : Which mesh to destroy
+ */
+JUST_API void meshDestroy(TerminalMesh* MESH);
 
-typedef struct transform3D
-{
-  vec3s position; ///< World positions (x, y, z)
-  vec3s rotation; ///< Euler angles (pitch, yaw, roll in radians)
-  vec3s scale;    ///< Scaling factors (x, y, x), default to (1, 1, 1)
-} Transform3D;
-
-typedef struct terminalMesh3D
-{
-  TerminalVertex* vertices;
-  size_t          vertexCount;
-
-  TerminalTriangle* triangles;
-  size_t            triangleCount;
-
-  Transform3D       transform;
-} TerminalMesh;
-
-
-JUST_API void mesh3DCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIANGLE_COUNT);
-
-JUST_API void mesh3DDestroy(TerminalMesh* MESH);
-
+/**
+ * @brief : Draw a mesh in a frame
+ * @param FRAME : Which frame to draw to
+ * @param MESH : What mesh to draw
+ * @param WIREFRAME : Want a wireframe or full render 
+ */
 JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME);

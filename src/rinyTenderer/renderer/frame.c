@@ -1,5 +1,5 @@
-#include "rinyTenderer/renderer/camera.h"
-#include "rinyTenderer/renderer/light.h"
+#include "cglm/types.h"
+#include "rinyTenderer/renderer/_structs.h"
 #include <bits/time.h>
 #include <justLibrary.h>
 #include <rinyTenderer/window.h>
@@ -38,7 +38,7 @@ JUST_API TerminalColor terminalColorFromRGB(uint8_t R, uint8_t G, uint8_t B)
 
 // - - - Create and Destroy - - - 
 
-JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSize SIZE)
+JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSize SIZE)
 {
   JUST_LOG_DEBUG("[FRAME] : Creating a new frame");
 
@@ -46,7 +46,7 @@ JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSiz
 
   const TerminalCTX* ctx = terminalGetContext();
 
-  if (SIZE.cols == 0 || SIZE.rows == 0)
+  if (SIZE.x == 0 || SIZE.y == 0)
   {
     JUST_LOG_WARNING("[FRAME] : Going for maximimum size");
     FRAME->size = ctx->size;
@@ -56,7 +56,7 @@ JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSiz
     FRAME->size = SIZE;
   }
 
-  if (POSITION.rows == 0 || POSITION.cols == 0)
+  if (POSITION.x == 0 || POSITION.y == 0)
   {
     FRAME->position = TOP_LEFT_FRAME_POS;
   }
@@ -66,8 +66,8 @@ JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSiz
   }
 
   // - - - allocate 1D buffer : ((width + 1 for \n) * height) + 1 for \0
-  size_t width      = FRAME->size.width;
-  size_t height     = FRAME->size.height;
+  size_t width      = FRAME->size.x;
+  size_t height     = FRAME->size.y;
   size_t totalCells = width * height;
   
   JUST_LOG_DEBUG(
@@ -107,8 +107,8 @@ JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSiz
   cameraSetAspectRatio(&FRAME->camera, aspectRatio);
 
   // - - - initial ambience light
-  FRAME->ambientColor     = (RGBcolor) { 50, 50, 50 };
-  FRAME->ambientIntensity = 0.3f;
+  FRAME->ambientColor     = (RGBcolor) { 55.0f, 55.0f, 55.0f };
+  FRAME->ambientIntensity = 0.5f;
 
   // - - - initial clear
   frameClear(FRAME, 0);
@@ -119,12 +119,12 @@ JUST_API void frameInit(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSiz
 JUST_API void frameDestroy(TerminalFrame* FRAME)
 {
   JUST_LOG_DEBUG("[FRAME] : Destroying a FRAME");
-
   JUST_ASSERT_DEBUG_MESSAGE(FRAME != NULL, "[FRAME] : Cannot destroy a NULL FRAME");
 
   JUST_FREE(FRAME->backBuffer);
   JUST_FREE(FRAME->frontBuffer);
   JUST_FREE(FRAME->depthBuffer);
+
   FRAME->backBuffer  = NULL;
   FRAME->frontBuffer = NULL;
   FRAME->depthBuffer = NULL;
@@ -254,10 +254,11 @@ JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalCol
   if (POSITION.x >= FRAME->size.width)  return;
   if (POSITION.y >= FRAME->size.height) return;
 
-  size_t index              = POSITION.y * (FRAME->size.width) + POSITION.x;
-  if (POSITION.depth > FRAME->depthBuffer[index]) return;
+  size_t index = POSITION.y * (FRAME->size.width) + POSITION.x;
+  if (POSITION.z > FRAME->depthBuffer[index]) return;
 
   FRAME->backBuffer[index]  = PIXEL;
+  FRAME->depthBuffer[index] = POSITION.z;
 }
 
 
@@ -273,8 +274,8 @@ JUST_API void frameLine(
   int y0 = START_POS.y;
   int x1 = END_POS.x;
   int y1 = END_POS.y;
-  int z0 = START_POS.depth;
-  int z1 = END_POS.depth;
+  int z0 = START_POS.z;
+  int z1 = END_POS.z;
 
   // - - - Handle steep lines by swapping the axes.
   bool steep = abs(y1 - y0) > abs(x1 - x0);

@@ -6,7 +6,7 @@
 #include <rinyTenderer/renderer/mesh.h>
 #include <stdint.h>
 
-JUST_API void mesh3DCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIANGLE_COUNT)
+JUST_API void meshCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIANGLE_COUNT)
 {
   JUST_LOG_DEBUG("[MESH] : Creating new 3D mesh (Vertices : %zu, Triangles: %zu)", VERTEX_COUNT, TRIANGLE_COUNT);
   JUST_ASSERT_DEBUG_MESSAGE(MESH != NULL, "[MESH] : Cannot initialize a NULL mesh");
@@ -32,7 +32,7 @@ JUST_API void mesh3DCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIAN
   JUST_LOG_INFO("[MESH] : 3D mesh successfully created");
 }
 
-JUST_API void mesh3DDestroy(TerminalMesh* MESH)
+JUST_API void meshDestroy(TerminalMesh* MESH)
 {
   JUST_LOG_DEBUG("[MESH] : Destroying 3D mesh");
   JUST_ASSERT_DEBUG_MESSAGE(MESH != NULL, "[MESH] : Cannot destroy a NULL MESH");
@@ -116,8 +116,8 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
     }
 
     // - - - viewport mapping to frame pixel grid
-    float screenX = (ndcX + 1.0f) * 0.5f * (float) FRAME->size.cols;
-    float screenY = (1.0f - ndcY) * 0.5f * (float) FRAME->size.rows;
+    float screenX = (ndcX + 1.0f) * 0.5f * (float) FRAME->size.width;
+    float screenY = (1.0f - ndcY) * 0.5f * (float) FRAME->size.height;
 
     // - - - Map normalized depth to uint16_t depth range
     float     normalizedZ = (ndcZ + 1.0f) * 0.5f;
@@ -178,80 +178,85 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
        (p0World.z + p1World.z + p2World.z) / 3.0f 
     }};
 
-    RGBcolor  base      = MESH->vertices[i0].color;
-    int       totalRed  = base.r * FRAME->ambientColor.r * FRAME->ambientIntensity;
-    int       totalGreen = base.g * FRAME->ambientColor.g * FRAME->ambientIntensity;
-    int       totalBlue = base.b * FRAME->ambientColor.b * FRAME->ambientIntensity;
+    
+    RGBcolor v0 = MESH->vertices[i0].color;
+    RGBcolor v1 = MESH->vertices[i1].color;
+    RGBcolor v2 = MESH->vertices[i2].color;
 
-    int factor = 255 * 255 * 255;
-    for (uint8_t i = 0; i < FRAME->directionalLightCount; ++i)
+    int baseR = (v0.r + v1.r + v2.r) / 3;
+    int baseG = (v0.g + v1.g + v2.g) / 3;
+    int baseB = (v0.b + v1.b + v2.b) / 3;
+
+    float lightR = 0.0f;
+    float lightG = 0.0f;
+    float lightB = 0.0f;
+
+    // - - - Directional lights
+    for (uint8_t j = 0; j < FRAME->directionalLightCount; ++j)
     {
-      TerminalLight light = FRAME->directionalLights[i];
-      int diffuse = 0;
+      TerminalLight light     = FRAME->directionalLights[j];
+      vec3s         lightDir  = glms_vec3_negate(light.direction);
+      float         dot       = glms_vec3_dot(normal, lightDir);
 
-      vec3s lightDir  = glms_vec3_negate(light.direction);
-      float dot       = glms_vec3_dot(normal, lightDir);
-      if (dot > 0.0f) diffuse = (int) (dot * 255);
-
-
-      totalRed    += (base.r * light.color.r * light.intensity * diffuse) / factor;
-      totalGreen  += (base.g * light.color.g * light.intensity * diffuse) / factor;
-      totalBlue   += (base.b * light.color.b * light.intensity * diffuse) / factor;
+      if (dot > 0.0f)
+      {
+        float diffuse = dot * light.intensity;
+        lightR += (light.color.r / 255.0f) * diffuse;
+        lightG += (light.color.g / 255.0f) * diffuse;
+        lightB += (light.color.b / 255.0f) * diffuse;
+      }
     }
 
-    for (uint8_t i = 0; i < FRAME->pointLightCount; ++i)
+    // - - - Point lights
+    for (uint8_t j = 0; j < FRAME->pointLightCount; ++j)
     {
-      TerminalLight light = FRAME->pointLights[i];
-      int diffuse = 0;
-
-      vec3s lightVec = glms_vec3_sub(light.position, triCenter);
-      float distance = glms_vec3_norm(lightVec);
-      vec3s lightDir = glms_vec3_scale(lightVec, 1.0f / (distance + 0.0001f));
+      TerminalLight light     = FRAME->pointLights[j];
+      vec3s         lightVec  = glms_vec3_sub(light.position, triCenter);
+      float         distance  = glms_vec3_norm(lightVec);
+      vec3s         lightDir  = glms_vec3_scale(lightVec, 1.0f / (distance + 0.0001f));
 
       float dot = glms_vec3_dot(normal, lightDir);
       if (dot > 0.0f)
       {
         float attenuation = 1.0f / (1.0f + 0.1f * distance + 0.01f * (distance * distance));
-        diffuse = dot * attenuation * 255;
+        float diffuse     = dot * attenuation * light.intensity;
+        
+        lightR += (light.color.r / 255.0f) * diffuse;
+        lightG += (light.color.g / 255.0f) * diffuse;
+        lightB += (light.color.b / 255.0f) * diffuse;
       }
-
-      totalRed    += (base.r * light.color.r * light.intensity * diffuse) / factor;
-      totalGreen  += (base.g * light.color.g * light.intensity * diffuse) / factor;
-      totalBlue   += (base.b * light.color.b * light.intensity * diffuse) / factor;
     }
 
-    uint8_t finalR = totalRed   > 255 ? 255 : (uint8_t) totalRed;
-    uint8_t finalG = totalGreen > 255 ? 255 : (uint8_t) totalGreen;
-    uint8_t finalB = totalBlue  > 255 ? 255 : (uint8_t) totalBlue;
+    // - - - Cap light
+    lightR = lightR > 1.0f ? 1.0f : lightR;
+    lightG = lightG > 1.0f ? 1.0f : lightG;
+    lightB = lightB > 1.0f ? 1.0f : lightB;
+
+    // - - - Compute Ambient Floor
+    int ambR = (int)(FRAME->ambientColor.r * FRAME->ambientIntensity);
+    int ambG = (int)(FRAME->ambientColor.g * FRAME->ambientIntensity);
+    int ambB = (int)(FRAME->ambientColor.b * FRAME->ambientIntensity);
+
+    // - - - Multiply integer base colors directly by the accumulated lighting multipliers
+    int totalRed   = (int)(baseR * lightR) + ambR;
+    int totalGreen = (int)(baseG * lightG) + ambG;
+    int totalBlue  = (int)(baseB * lightB) + ambB;
+
+    uint8_t finalR = totalRed   > 255 ? 255 : (uint8_t)totalRed;
+    uint8_t finalG = totalGreen > 255 ? 255 : (uint8_t)totalGreen;
+    uint8_t finalB = totalBlue  > 255 ? 255 : (uint8_t)totalBlue;
 
     TerminalColor pixelColor = terminalColorFromRGB(finalR, finalG, finalB);
 
     if (WIREFRAME)
     {
-      frameLine(
-          FRAME,
-          projected[i0].pos,
-          projected[i1].pos,
-          pixelColor);
-      frameLine(
-          FRAME,
-          projected[i1].pos,
-          projected[i2].pos,
-          pixelColor);
-      frameLine(
-          FRAME,
-          projected[i2].pos,
-          projected[i0].pos,
-          pixelColor);
+      frameLine(FRAME, projected[i0].pos, projected[i1].pos, pixelColor);
+      frameLine(FRAME, projected[i1].pos, projected[i2].pos, pixelColor);
+      frameLine(FRAME, projected[i2].pos, projected[i0].pos, pixelColor);
     }
     else
     {
-      frameTriangle(
-          FRAME,
-          projected[i0].pos,
-          projected[i1].pos,
-          projected[i2].pos,
-          pixelColor);
+      frameTriangle(FRAME, projected[i0].pos, projected[i1].pos, projected[i2].pos, pixelColor);
     }
   }
 }

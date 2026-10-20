@@ -1,15 +1,28 @@
+#include "justLibrary.h"
+#include "rinyTenderer/renderer/_structs.h"
 #include <rinyTenderer/renderer/camera.h>
 
 JUST_API void cameraInit(TerminalCamera* CAMERA)
 {
   JUST_ASSERT_DEBUG(CAMERA != NULL);
 
-  CAMERA->position  = (vec3s) {{ 0.0f, 0.0f, 5.0f }}; ///< Default position back from origin
-  CAMERA->target    = (vec3s) {{ 0.0f, 0.0f, 0.0f }}; ///< Looking at the world origin
-  CAMERA->up        = (vec3s) {{ 0.0f, 1.0f, 0.0f }}; ///< Up in y axis                                                   
+  // - - - Be at 0, 0, 5
+  FramePos cameraPos = { { 0, 0, 5 } };
+  cameraSetPosition(CAMERA, cameraPos);
 
-  CAMERA->fov         = glm_rad(60.0f);
-  CAMERA->nearPlane   = 0.1f;
-  CAMERA->farPlane    = 100.0f;
-  CAMERA->aspectRatio = 1.0f;
+  // - - - Look at the world origin
+  FramePos origin = { { 0.0f, 0.0f, 0.0f } };
+  cameraSetTarget(CAMERA, origin);
+
+  // - - - Up is the y axis
+  FramePos yAxis = { { 0.0f, 1.0f, 0.0f } };
+  cameraSetUp(CAMERA, yAxis);
+
+  // - - - Reasonable defaults 
+  float defaultFOV          = 60;
+  float defaultNearPlane    = 0.1f;
+  float defaultFarPlane     = 100.0f;
+  float defaultAspectRatio  = 1.0f;
+  cameraSetPerspective(CAMERA, defaultFOV, defaultNearPlane, defaultFarPlane);
+  cameraSetAspectRatio(CAMERA, defaultAspectRatio);
 }

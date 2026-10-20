@@ -1,6 +1,5 @@
 #include "rinyTenderer/renderer/light.h"
 #include <justLibrary.h>
-#include <rinyTenderer/sample.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
 #include <rinyTenderer/renderer/mesh.h> // Ensure this points to your mesh header
@@ -16,19 +15,20 @@
 // Helper to create a 3D cube mesh using your exact mesh3DCreate signature
 static TerminalMesh createCubeMesh(void)
 {
-  justMemorySetLimit(1024 * 1024, "TERM_BUFFER");
+    terminalUpdateSize();
+    justMemorySetLimit(1024 * 1024, "TERM_BUFFER");
     TerminalMesh cube;
-    mesh3DCreate(&cube, 8, 12);
+    meshCreate(&cube, 8, 12);
 
-    // 1. Populate Vertices
-    cube.vertices[0] = (TerminalVertex){ .position = {{ -1.0f, -1.0f, -1.0f }}, .color = (RGBcolor) {0, 200, 255} };
-    cube.vertices[1] = (TerminalVertex){ .position = {{  1.0f, -1.0f, -1.0f }}, .color = (RGBcolor) {50, 200, 255} };
-    cube.vertices[2] = (TerminalVertex){ .position = {{  1.0f,  1.0f, -1.0f }}, .color = (RGBcolor) {100, 200, 255} };
-    cube.vertices[3] = (TerminalVertex){ .position = {{ -1.0f,  1.0f, -1.0f }}, .color = (RGBcolor) {150, 200, 255} };
-    cube.vertices[4] = (TerminalVertex){ .position = {{ -1.0f, -1.0f,  1.0f }}, .color = (RGBcolor) {200, 200, 255} };
-    cube.vertices[5] = (TerminalVertex){ .position = {{  1.0f, -1.0f,  1.0f }}, .color = (RGBcolor) {250, 200, 255} };
-    cube.vertices[6] = (TerminalVertex){ .position = {{  1.0f,  1.0f,  1.0f }}, .color = (RGBcolor) {123, 200, 255} };
-    cube.vertices[7] = (TerminalVertex){ .position = {{ -1.0f,  1.0f,  1.0f }}, .color = (RGBcolor) {213, 200, 255} };
+// 1. Populate Vertices with standard RGB/CMY cube colors
+    cube.vertices[0] = (TerminalVertex){ .position = {{ -1.0f, -1.0f, -1.0f }}, .color = (RGBcolor) {  0,   0,   0 } }; // Black
+    cube.vertices[1] = (TerminalVertex){ .position = {{  1.0f, -1.0f, -1.0f }}, .color = (RGBcolor) {255,   0,   0 } }; // Red
+    cube.vertices[2] = (TerminalVertex){ .position = {{  1.0f,  1.0f, -1.0f }}, .color = (RGBcolor) {255, 255,   0 } }; // Yellow
+    cube.vertices[3] = (TerminalVertex){ .position = {{ -1.0f,  1.0f, -1.0f }}, .color = (RGBcolor) {  0, 255,   0 } }; // Green
+    cube.vertices[4] = (TerminalVertex){ .position = {{ -1.0f, -1.0f,  1.0f }}, .color = (RGBcolor) {  0,   0, 255 } }; // Blue
+    cube.vertices[5] = (TerminalVertex){ .position = {{  1.0f, -1.0f,  1.0f }}, .color = (RGBcolor) {255,   0, 255 } }; // Magenta
+    cube.vertices[6] = (TerminalVertex){ .position = {{  1.0f,  1.0f,  1.0f }}, .color = (RGBcolor) {255, 255, 255 } }; // White
+    cube.vertices[7] = (TerminalVertex){ .position = {{ -1.0f,  1.0f,  1.0f }}, .color = (RGBcolor) {  0, 255, 255 } }; // Cyan
 
     // 2. Populate Triangles (12 triangles, 2 per face)
     TerminalTriangle tempTriangles[12] = {
@@ -55,11 +55,10 @@ static TerminalMesh createCubeMesh(void)
 
 int32_t main(void)
 {
-    boot();
     terminalInit();
 
     TerminalFrame frame;
-    frameInit(&frame, TOP_LEFT_FRAME_POS, FULLSCREEN_FRAME_SIZE);
+    frameCreate(&frame, TOP_LEFT_FRAME_POS, FULLSCREEN_FRAME_SIZE);
     frameSetFPS(&frame, 30);
 
     // Initial camera placement
@@ -145,7 +144,7 @@ int32_t main(void)
     }
 
     // Cleanup using your exact destroy signature
-    mesh3DDestroy(&cube);
+    meshDestroy(&cube);
     frameDestroy(&frame);
     terminalShutdown();
 

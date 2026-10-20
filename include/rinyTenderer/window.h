@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "cglm/types-struct.h"
+#include "cglm/types.h"
 #include <justLibrary.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
@@ -79,6 +81,7 @@ typedef struct terminalContext
 #endif
 } TerminalCTX;
 
+
 // - - - Size - - -
 
 /// @brief : Updates the terminal size
@@ -115,22 +118,23 @@ JUST_API uint16_t     terminalGetWidth  (void);
 JUST_API uint16_t     terminalGetHeight (void);
 
 /// @brief : Checks key presses
-JUST_API void terminalPollInput(void);
+JUST_API void         terminalPollInput(void);
 
 /**
  * @brief : Tells whether a given key is pressed or not
  * @param KEY : The key to check
  * @return : true if pressed, false otherwise
  */
-JUST_API bool terminalIsKeyDown(KeyCode KEY);
+JUST_API bool         terminalIsKeyDown(KeyCode KEY);
+
 
 // - - - Initialization - - -
 
 /// @brief : Initializes the terminal
-JUST_API void terminalInit(void);
+JUST_API void         terminalInit(void);
 
 /// @brief : Shuts the terminal renderer down
-JUST_API void terminalShutdown(void);
+JUST_API void         terminalShutdown(void);
 
 
 // - - - Cursor - - -
