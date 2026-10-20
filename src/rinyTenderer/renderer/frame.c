@@ -107,8 +107,8 @@ JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalS
   cameraSetAspectRatio(&FRAME->camera, aspectRatio);
 
   // - - - initial ambience light
-  FRAME->ambientColor     = (RGBcolor) { 55.0f, 55.0f, 55.0f };
-  FRAME->ambientIntensity = 0.5f;
+  FRAME->ambientColor     = (RGBcolor) { 155.0f, 155.0f, 155.0f };
+  FRAME->ambientIntensity = 1.0f;
 
   // - - - initial clear
   frameClear(FRAME, 0);
@@ -235,11 +235,11 @@ JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE)
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot clear an uninitialized buffer");
 
-  for (uint16_t y = 0; y < FRAME->size.height; ++y)
+  for (uint16_t y = 0; y < FRAME->size.rows; ++y)
   {
-    for (uint16_t x = 0; x < FRAME->size.width; ++x)
+    for (uint16_t x = 0; x < FRAME->size.cols; ++x)
     {
-      size_t index              = y * (FRAME->size.width) + x;
+      size_t index              = y * FRAME->size.cols + x;
       FRAME->backBuffer[index]  = PIXEL_TEMPLATE;
       FRAME->depthBuffer[index] = 0xFFFF;
     }
@@ -265,10 +265,11 @@ JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalCol
 // - - - Geometry - - - 
 
 JUST_API void frameLine(
-    TerminalFrame*  FRAME, 
-    FramePos        START_POS, 
-    FramePos        END_POS, 
-    TerminalColor   PIXEL_TEMPLATE)
+    TerminalFrame*    FRAME, 
+    FramePos          START_POS, 
+    FramePos          END_POS, 
+    RGBcolor          START_COLOR,
+    RGBcolor          END_COLOR)
 {
   int x0 = START_POS.x;
   int y0 = START_POS.y;
@@ -277,219 +278,208 @@ JUST_API void frameLine(
   int z0 = START_POS.z;
   int z1 = END_POS.z;
 
-  // - - - Handle steep lines by swapping the axes.
+  int r0 = START_COLOR.r, g0 = START_COLOR.g, b0 = START_COLOR.b;
+  int r1 = END_COLOR.r,   g1 = END_COLOR.g,   b1 = END_COLOR.b;
+
+  // - - - Handle steep lines by swapping axes
   bool steep = abs(y1 - y0) > abs(x1 - x0);
   if (steep)
   {
-    int temp  = x0;
-    x0        = y0;
-    y0        = temp;
-
-    temp      = x1;
-    x1        = y1;
-    y1        = temp;
+    int temp = x0; x0 = y0; y0 = temp;
+    temp = x1;     x1 = y1; y1 = temp;
   }
 
-  // - - - Iterate from left to right.
+  // - - - Iterate from left to right
   if (x0 > x1)
   {
-    int temp  = x0;
-    x0        = x1;
-    x1        = temp;
+    int temp = x0; x0 = x1; x1 = temp;
+    temp = y0;     y0 = y1; y1 = temp;
+    temp = z0;     z0 = z1; z1 = temp;
 
-    temp      = y0;
-    y0        = y1;
-    y1        = temp;
-
-    temp      = z0;
-    z0        = z1;
-    z1        = temp;
+    temp = r0; r0 = r1; r1 = temp;
+    temp = g0; g0 = g1; g1 = temp;
+    temp = b0; b0 = b1; b1 = temp;
   }
 
-  int dx          = x1 - x0;
-  int dy          = abs(y1 - y0);
-  int error       = dx / 2;
-  int ystep       = (y0 < y1) ? 1 : -1;
-  int y           = y0;
-  int totalSteps  = (dx > 0) ? dx : 1;
+  int dx        = x1 - x0;
+  int dy        = abs(y1 - y0);
+  int error     = dx / 2;
+  int ystep     = (y0 < y1) ? 1 : -1;
+  int y         = y0;
+  int totalSteps = (dx > 0) ? dx : 1;
 
   for (int x = x0; x <= x1; x++)
   {
-    int currentZ = z0 + ((z1 - z0) * (x - x0)) / totalSteps;
+    int tNum     = x - x0;
+    int currentZ = z0 + ((z1 - z0) * tNum) / totalSteps;
+    int currR    = r0 + ((r1 - r0) * tNum) / totalSteps;
+    int currG    = g0 + ((g1 - g0) * tNum) / totalSteps;
+    int currB    = b0 + ((b1 - b0) * tNum) / totalSteps;
+
     FramePos position = 
     {
       .x = steep ? y : x,
       .y = steep ? x : y,
       .z = (uint16_t) currentZ
     };
-    frameSetPixel(FRAME, position, PIXEL_TEMPLATE);
+
+    TerminalColor termColor = terminalColorFromRGB((uint8_t)currR, (uint8_t)currG, (uint8_t)currB);
+    frameSetPixel(FRAME, position, termColor);
 
     error -= dy;
     if (error < 0)
     {
-      y     += ystep;
+      y   += ystep;
       error += dx;
     }
   }
 }
 
-
 JUST_API void frameTriangle(
-    TerminalFrame*  FRAME, 
-    FramePos        POINT_A, 
-    FramePos        POINT_B, 
-    FramePos        POINT_C, 
-    TerminalColor   PIXEL_TEMPLATE)
+    TerminalFrame*    FRAME, 
+    FramePos          POINT_A, 
+    FramePos          POINT_B, 
+    FramePos          POINT_C, 
+    RGBcolor          COLORS[3])
 {
-  int ax = POINT_A.x;
-  int ay = POINT_A.y;
-  int az = POINT_A.z;
+  int ax = POINT_A.x; int ay = POINT_A.y; int az = POINT_A.z;
+  int bx = POINT_B.x; int by = POINT_B.y; int bz = POINT_B.z;
+  int cx = POINT_C.x; int cy = POINT_C.y; int cz = POINT_C.z;
 
-  int bx = POINT_B.x;
-  int by = POINT_B.y;
-  int bz = POINT_B.z;
+  RGBcolor c0 = COLORS[0];
+  RGBcolor c1 = COLORS[1];
+  RGBcolor c2 = COLORS[2];
 
-  int cx = POINT_C.x;
-  int cy = POINT_C.y;
-  int cz = POINT_C.z;
-
-  // - - - bubble sort
+  // - - - Bubble sort vertices by Y (ay <= by <= cy) and keep colors synchronized
   if (ay > by)
   {
-    int temp  = ax;
-    ax        = bx;
-    bx        = temp;
-
-    temp  = ay;
-    ay    = by;
-    by    = temp;
-
-    temp  = az;
-    az    = cz;
-    cz    = temp;
+    int temp = ax; ax = bx; bx = temp;
+    temp = ay;     ay = by; by = temp;
+    temp = az;     az = bz; bz = temp;
+    RGBcolor ct = c0; c0 = c1; c1 = ct;
   }
   if (ay > cy)
   {
-    int temp  = ax;
-    ax        = cx;
-    cx        = temp;
-
-    temp  = ay;
-    ay    = cy;
-    cy    = temp;
-
-    temp  = az;
-    az    = cz;
-    cz    = temp;
+    int temp = ax; ax = cx; cx = temp;
+    temp = ay;     ay = cy; cy = temp;
+    temp = az;     az = cz; cz = temp;
+    RGBcolor ct = c0; c0 = c2; c2 = ct;
   }
   if (by > cy)
   {
-    int temp  = bx;
-    bx        = cx;
-    cx        = temp;
-
-    temp  = by;
-    by    = cy;
-    cy    = temp;
-
-    temp  = bz;
-    bz    = cz;
-    cz    = temp;
+    int temp = bx; bx = cx; cx = temp;
+    temp = by;     by = cy; cy = temp;
+    temp = bz;     bz = cz; cz = temp;
+    RGBcolor ct = c1; c1 = c2; c2 = ct;
   }
 
   int height = cy - ay;
-  if (height == 0) return; // - - - Degenerate triangle
+  if (height == 0) return; // Degenerate triangle
 
-  // - - - bottom half
+  // - - - Bottom half (ay to by)
   if (ay != by)
   {
-    // - - - swwp a horizontal line from ay to by
     int segmentHeight = by - ay;
     for (int y = ay; y <= by; ++y)
     {
-      // - - - Interpolate X and Z along edge AC (long side)
       int x1 = ax + ((cx - ax) * (y - ay)) / height;
       int z1 = az + ((cz - az) * (y - ay)) / height;
+      int r1 = c0.r + ((c2.r - c0.r) * (y - ay)) / height;
+      int g1 = c0.g + ((c2.g - c0.g) * (y - ay)) / height;
+      int b1 = c0.b + ((c2.b - c0.b) * (y - ay)) / height;
 
       int x2 = ax + ((bx - ax) * (y - ay)) / segmentHeight;
       int z2 = az + ((bz - az) * (y - ay)) / segmentHeight;
+      int r2 = c0.r + ((c1.r - c0.r) * (y - ay)) / segmentHeight;
+      int g2 = c0.g + ((c1.g - c0.g) * (y - ay)) / segmentHeight;
+      int b2 = c0.b + ((c1.b - c0.b) * (y - ay)) / segmentHeight;
 
-      int minX, maxX;
-      int minZ, maxZ;
+      int minX, maxX, minZ, maxZ;
+      int minR, maxR, minG, maxG, minB, maxB;
+
       if (x1 > x2)
       {
-        minX = x2; minZ = z2;
-        maxX = x1; maxZ = z1;
+        minX = x2; minZ = z2; minR = r2; minG = g2; minB = b2;
+        maxX = x1; maxZ = z1; maxR = r1; maxG = g1; maxB = b1;
       }
       else
       {
-        minX = x1; minZ = z1;
-        maxX = x2; maxZ = z2;
+        minX = x1; minZ = z1; minR = r1; minG = g1; minB = b1;
+        maxX = x2; maxZ = z2; maxR = r2; maxG = g2; maxB = b2;
       }
 
       int width = maxX - minX;
       for (int x = minX; x <= maxX; ++x)
       {
         int currentZ = minZ;
+        int currR = minR, currG = minG, currB = minB;
+
         if (width > 0)
         {
-          currentZ = minZ + ((maxZ - minZ) * (x - minX)) / width;
+          int tNum   = x - minX;
+          currentZ   = minZ + ((maxZ - minZ) * tNum) / width;
+          currR      = minR + ((maxR - minR) * tNum) / width;
+          currG      = minG + ((maxG - minG) * tNum) / width;
+          currB      = minB + ((maxB - minB) * tNum) / width;
         }
 
-        FramePos pos = 
-        {
-          .x = x,
-          .y = y,
-          .z = currentZ
-        };
-
-        frameSetPixel(FRAME, pos, PIXEL_TEMPLATE);
+        FramePos pos = { .x = x, .y = y, .z = (uint16_t)currentZ };
+        TerminalColor tc = terminalColorFromRGB((uint8_t)currR, (uint8_t)currG, (uint8_t)currB);
+        frameSetPixel(FRAME, pos, tc);
       }
     }
   }
 
-  // - - - top half
+  // - - - Top half (by to cy)
   if (by != cy)
   {
-    // - - - swwp a horizontal line from ay to by
     int segmentHeight = cy - by;
     for (int y = by; y <= cy; ++y)
     {
       int x1 = ax + ((cx - ax) * (y - ay)) / height;
-      int x2 = bx + ((cx - bx) * (y - by)) / segmentHeight;
-
       int z1 = az + ((cz - az) * (y - ay)) / height;
-      int z2 = bz + ((cz - bz) * (y - by)) / segmentHeight;
+      int r1 = c0.r + ((c2.r - c0.r) * (y - ay)) / height;
+      int g1 = c0.g + ((c2.g - c0.g) * (y - ay)) / height;
+      int b1 = c0.b + ((c2.b - c0.b) * (y - ay)) / height;
 
-      int minX, maxX;
-      int minZ, maxZ;
+      int x2 = bx + ((cx - bx) * (y - by)) / segmentHeight;
+      int z2 = bz + ((cz - bz) * (y - by)) / segmentHeight;
+      int r2 = c1.r + ((c2.r - c1.r) * (y - by)) / segmentHeight;
+      int g2 = c1.g + ((c2.g - c1.g) * (y - by)) / segmentHeight;
+      int b2 = c1.b + ((c2.b - c1.b) * (y - by)) / segmentHeight;
+
+      int minX, maxX, minZ, maxZ;
+      int minR, maxR, minG, maxG, minB, maxB;
+
       if (x1 > x2)
       {
-        minX = x2; minZ = z2;
-        maxX = x1; maxZ = z1;
+        minX = x2; minZ = z2; minR = r2; minG = g2; minB = b2;
+        maxX = x1; maxZ = z1; maxR = r1; maxG = g1; maxB = b1;
       }
       else
       {
-        minX = x1; minZ = z1;
-        maxX = x2; maxZ = z2;
+        minX = x1; minZ = z1; minR = r1; minG = g1; minB = b1;
+        maxX = x2; maxZ = z2; maxR = r2; maxG = g2; maxB = b2;
       }
 
       int width = maxX - minX;
       for (int x = minX; x <= maxX; ++x)
       {
         int currentZ = minZ;
-        if (width > 0) 
+        int currR = minR, currG = minG, currB = minB;
+
+        if (width > 0)
         {
-          currentZ = minZ + ((maxZ - minZ) * (x - minX)) / width;
+          int tNum   = x - minX;
+          currentZ   = minZ + ((maxZ - minZ) * tNum) / width;
+          currR      = minR + ((maxR - minR) * tNum) / width;
+          currG      = minG + ((maxG - minG) * tNum) / width;
+          currB      = minB + ((maxB - minB) * tNum) / width;
         }
 
-        FramePos pos = 
-        {
-          .x = x,
-          .y = y,
-          .z = currentZ
-        };
-        frameSetPixel(FRAME, pos, PIXEL_TEMPLATE);
+        FramePos pos = { .x = x, .y = y, .z = (uint16_t)currentZ };
+        TerminalColor tc = terminalColorFromRGB((uint8_t)currR, (uint8_t)currG, (uint8_t)currB);
+        frameSetPixel(FRAME, pos, tc);
       }
     }
   }

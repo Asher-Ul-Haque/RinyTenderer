@@ -2,7 +2,7 @@
 #include <justLibrary.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
-#include <rinyTenderer/renderer/mesh.h> // Ensure this points to your mesh header
+#include <rinyTenderer/renderer/mesh.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
@@ -12,32 +12,58 @@
 #include <cglm/cglm.h>
 #include <cglm/struct.h>
 
-// Helper to create a 3D cube mesh using your exact mesh3DCreate signature
+// 1. Cube Mesh (Flat Shaded - 24 Vertices, 6 Uniform Colored Faces)
 static TerminalMesh createCubeMesh(void)
 {
     terminalUpdateSize();
     justMemorySetLimit(1024 * 1024, "TERM_BUFFER");
+    justMemorySetLimit(1024 * 1024, "TERM_MESH");
     TerminalMesh cube;
-    meshCreate(&cube, 8, 12);
+    meshCreate(&cube, 24, 12);
 
-// 1. Populate Vertices with standard RGB/CMY cube colors
-    cube.vertices[0] = (TerminalVertex){ .position = {{ -1.0f, -1.0f, -1.0f }}, .color = (RGBcolor) {  0,   0,   0 } }; // Black
-    cube.vertices[1] = (TerminalVertex){ .position = {{  1.0f, -1.0f, -1.0f }}, .color = (RGBcolor) {255,   0,   0 } }; // Red
-    cube.vertices[2] = (TerminalVertex){ .position = {{  1.0f,  1.0f, -1.0f }}, .color = (RGBcolor) {255, 255,   0 } }; // Yellow
-    cube.vertices[3] = (TerminalVertex){ .position = {{ -1.0f,  1.0f, -1.0f }}, .color = (RGBcolor) {  0, 255,   0 } }; // Green
-    cube.vertices[4] = (TerminalVertex){ .position = {{ -1.0f, -1.0f,  1.0f }}, .color = (RGBcolor) {  0,   0, 255 } }; // Blue
-    cube.vertices[5] = (TerminalVertex){ .position = {{  1.0f, -1.0f,  1.0f }}, .color = (RGBcolor) {255,   0, 255 } }; // Magenta
-    cube.vertices[6] = (TerminalVertex){ .position = {{  1.0f,  1.0f,  1.0f }}, .color = (RGBcolor) {255, 255, 255 } }; // White
-    cube.vertices[7] = (TerminalVertex){ .position = {{ -1.0f,  1.0f,  1.0f }}, .color = (RGBcolor) {  0, 255, 255 } }; // Cyan
+    // Front Face (Z = 1.0f) - Red
+    cube.vertices[0]  = (TerminalVertex){ .position = {{-1.0f, -1.0f,  1.0f}}, .normal = {{0.0f, 0.0f, 1.0f}}, .color = (RGBcolor){255, 50,  50} };
+    cube.vertices[1]  = (TerminalVertex){ .position = {{ 1.0f, -1.0f,  1.0f}}, .normal = {{0.0f, 0.0f, 1.0f}}, .color = (RGBcolor){255, 50,  50} };
+    cube.vertices[2]  = (TerminalVertex){ .position = {{ 1.0f,  1.0f,  1.0f}}, .normal = {{0.0f, 0.0f, 1.0f}}, .color = (RGBcolor){255, 50,  50} };
+    cube.vertices[3]  = (TerminalVertex){ .position = {{-1.0f,  1.0f,  1.0f}}, .normal = {{0.0f, 0.0f, 1.0f}}, .color = (RGBcolor){255, 50,  50} };
 
-    // 2. Populate Triangles (12 triangles, 2 per face)
+    // Back Face (Z = -1.0f) - Green
+    cube.vertices[4]  = (TerminalVertex){ .position = {{ 1.0f, -1.0f, -1.0f}}, .normal = {{0.0f, 0.0f, -1.0f}}, .color = (RGBcolor){50,  255, 50} };
+    cube.vertices[5]  = (TerminalVertex){ .position = {{-1.0f, -1.0f, -1.0f}}, .normal = {{0.0f, 0.0f, -1.0f}}, .color = (RGBcolor){50,  255, 50} };
+    cube.vertices[6]  = (TerminalVertex){ .position = {{-1.0f,  1.0f, -1.0f}}, .normal = {{0.0f, 0.0f, -1.0f}}, .color = (RGBcolor){50,  255, 50} };
+    cube.vertices[7]  = (TerminalVertex){ .position = {{ 1.0f,  1.0f, -1.0f}}, .normal = {{0.0f, 0.0f, -1.0f}}, .color = (RGBcolor){50,  255, 50} };
+
+    // Left Face (X = -1.0f) - Blue
+    cube.vertices[8]  = (TerminalVertex){ .position = {{-1.0f, -1.0f, -1.0f}}, .normal = {{-1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){50,  50,  255} };
+    cube.vertices[9]  = (TerminalVertex){ .position = {{-1.0f, -1.0f,  1.0f}}, .normal = {{-1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){50,  50,  255} };
+    cube.vertices[10] = (TerminalVertex){ .position = {{-1.0f,  1.0f,  1.0f}}, .normal = {{-1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){50,  50,  255} };
+    cube.vertices[11] = (TerminalVertex){ .position = {{-1.0f,  1.0f, -1.0f}}, .normal = {{-1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){50,  50,  255} };
+
+    // Right Face (X = 1.0f) - Yellow
+    cube.vertices[12] = (TerminalVertex){ .position = {{ 1.0f, -1.0f,  1.0f}}, .normal = {{1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){255, 255, 50} };
+    cube.vertices[13] = (TerminalVertex){ .position = {{ 1.0f, -1.0f, -1.0f}}, .normal = {{1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){255, 255, 50} };
+    cube.vertices[14] = (TerminalVertex){ .position = {{ 1.0f,  1.0f, -1.0f}}, .normal = {{1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){255, 255, 50} };
+    cube.vertices[15] = (TerminalVertex){ .position = {{ 1.0f,  1.0f,  1.0f}}, .normal = {{1.0f, 0.0f, 0.0f}}, .color = (RGBcolor){255, 255, 50} };
+
+    // Top Face (Y = 1.0f) - Magenta
+    cube.vertices[16] = (TerminalVertex){ .position = {{-1.0f,  1.0f, -1.0f}}, .normal = {{0.0f, 1.0f, 0.0f}}, .color = (RGBcolor){255, 50,  255} };
+    cube.vertices[17] = (TerminalVertex){ .position = {{-1.0f,  1.0f,  1.0f}}, .normal = {{0.0f, 1.0f, 0.0f}}, .color = (RGBcolor){255, 50,  255} };
+    cube.vertices[18] = (TerminalVertex){ .position = {{ 1.0f,  1.0f,  1.0f}}, .normal = {{0.0f, 1.0f, 0.0f}}, .color = (RGBcolor){255, 50,  255} };
+    cube.vertices[19] = (TerminalVertex){ .position = {{ 1.0f,  1.0f, -1.0f}}, .normal = {{0.0f, 1.0f, 0.0f}}, .color = (RGBcolor){255, 50,  255} };
+
+    // Bottom Face (Y = -1.0f) - Cyan
+    cube.vertices[20] = (TerminalVertex){ .position = {{-1.0f, -1.0f, -1.0f}}, .normal = {{0.0f, -1.0f, 0.0f}}, .color = (RGBcolor){50,  255, 255} };
+    cube.vertices[21] = (TerminalVertex){ .position = {{ 1.0f, -1.0f, -1.0f}}, .normal = {{0.0f, -1.0f, 0.0f}}, .color = (RGBcolor){50,  255, 255} };
+    cube.vertices[22] = (TerminalVertex){ .position = {{ 1.0f, -1.0f,  1.0f}}, .normal = {{0.0f, -1.0f, 0.0f}}, .color = (RGBcolor){50,  255, 255} };
+    cube.vertices[23] = (TerminalVertex){ .position = {{-1.0f, -1.0f,  1.0f}}, .normal = {{0.0f, -1.0f, 0.0f}}, .color = (RGBcolor){50,  255, 255} };
+
     TerminalTriangle tempTriangles[12] = {
-        { .indices = { 4, 5, 6 } }, { .indices = { 4, 6, 7 } }, // Front
-        { .indices = { 1, 0, 3 } }, { .indices = { 1, 3, 2 } }, // Back
-        { .indices = { 0, 4, 7 } }, { .indices = { 0, 7, 3 } }, // Left
-        { .indices = { 5, 1, 2 } }, { .indices = { 5, 2, 6 } }, // Right
-        { .indices = { 3, 7, 6 } }, { .indices = { 3, 6, 2 } }, // Top
-        { .indices = { 0, 1, 5 } }, { .indices = { 0, 5, 4 } }  // Bottom
+        { .indices = { 0,  1,  2  } }, { .indices = { 0,  2,  3  } }, // Front
+        { .indices = { 4,  5,  6  } }, { .indices = { 4,  6,  7  } }, // Back
+        { .indices = { 8,  9,  10 } }, { .indices = { 8,  10, 11 } }, // Left
+        { .indices = { 12, 13, 14 } }, { .indices = { 12, 14, 15 } }, // Right
+        { .indices = { 16, 17, 18 } }, { .indices = { 16, 18, 19 } }, // Top
+        { .indices = { 20, 21, 22 } }, { .indices = { 20, 22, 23 } }  // Bottom
     };
 
     for (size_t i = 0; i < 12; ++i)
@@ -45,12 +71,97 @@ static TerminalMesh createCubeMesh(void)
         cube.triangles[i] = tempTriangles[i];
     }
 
-    // 3. Initialize Transform defaults
     cube.transform.position = (vec3s){{ 0.0f, 0.0f, 0.0f }};
     cube.transform.rotation = (vec3s){{ 0.0f, 0.0f, 0.0f }};
-    cube.transform.scale    = (vec3s){{ 1.0f, 1.0f, 1.0f }};
+    cube.transform.scale    = (vec3s){{ 1.8f, 1.8f, 1.8f }};
 
     return cube;
+}
+
+// 2. Triangular Pyramid Mesh (12 Vertices, 4 Uniform Colored Faces with Normals)
+static TerminalMesh createPyramidMesh(void)
+{
+    TerminalMesh pyramid;
+    meshCreate(&pyramid, 4, 4);
+
+    pyramid.vertices[0] = (TerminalVertex){ .position = {{  0.0f,  1.0f,  0.0f }}, .color = (RGBcolor){ 255, 100, 100 } }; // Top Apex
+    pyramid.vertices[1] = (TerminalVertex){ .position = {{ -1.0f, -1.0f,  1.0f }}, .color = (RGBcolor){ 100, 255, 100 } }; // Front-Left
+    pyramid.vertices[2] = (TerminalVertex){ .position = {{  1.0f, -1.0f,  1.0f }}, .color = (RGBcolor){ 100, 100, 255 } }; // Front-Right
+    pyramid.vertices[3] = (TerminalVertex){ .position = {{  0.0f, -1.0f, -1.0f }}, .color = (RGBcolor){ 255, 255, 100 } }; // Back
+
+    TerminalTriangle tempTriangles[4] = {
+        { .indices = { 0, 1, 2 } }, 
+        { .indices = { 0, 2, 3 } }, 
+        { .indices = { 0, 3, 1 } }, 
+        { .indices = { 3, 2, 1 } }  
+    };
+
+    for (size_t i = 0; i < 4; ++i)
+    {
+        pyramid.triangles[i] = tempTriangles[i];
+    }
+
+    pyramid.transform.position = (vec3s){{ 0.0f, 0.0f, 0.0f }};
+    pyramid.transform.rotation = (vec3s){{ 0.0f, 0.0f, 0.0f }};
+    pyramid.transform.scale    = (vec3s){{ 1.8f, 1.8f, 1.8f }}; // Made bigger
+
+    return pyramid;
+}
+
+// 3. Triangular Prism Mesh (18 Vertices, 5 Uniform Colored Faces with Normals)
+static TerminalMesh createPrismMesh(void)
+{
+    TerminalMesh prism;
+    meshCreate(&prism, 18, 8);
+
+    // Side Face 1 (Quad -> 2 Triangles) - Magenta
+    prism.vertices[0] = (TerminalVertex){ .position = {{ 0.0f, -1.0f,  1.0f }}, .normal = {{ 0.0f, 0.0f,  1.0f }}, .color = (RGBcolor){ 255, 0, 255 } };
+    prism.vertices[1] = (TerminalVertex){ .position = {{-1.0f, -1.0f, -1.0f }}, .normal = {{ 0.0f, 0.0f,  1.0f }}, .color = (RGBcolor){ 255, 0, 255 } };
+    prism.vertices[2] = (TerminalVertex){ .position = {{-1.0f,  1.0f, -1.0f }}, .normal = {{ 0.0f, 0.0f,  1.0f }}, .color = (RGBcolor){ 255, 0, 255 } };
+    prism.vertices[3] = (TerminalVertex){ .position = {{ 0.0f,  1.0f,  1.0f }}, .normal = {{ 0.0f, 0.0f,  1.0f }}, .color = (RGBcolor){ 255, 0, 255 } };
+
+    // Side Face 2 (Quad -> 2 Triangles) - Cyan
+    prism.vertices[4] = (TerminalVertex){ .position = {{-1.0f, -1.0f, -1.0f }}, .normal = {{-0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 0, 255, 255 } };
+    prism.vertices[5] = (TerminalVertex){ .position = {{ 1.0f, -1.0f, -1.0f }}, .normal = {{-0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 0, 255, 255 } };
+    prism.vertices[6] = (TerminalVertex){ .position = {{ 1.0f,  1.0f, -1.0f }}, .normal = {{-0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 0, 255, 255 } };
+    prism.vertices[7] = (TerminalVertex){ .position = {{-1.0f,  1.0f, -1.0f }}, .normal = {{-0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 0, 255, 255 } };
+
+    // Side Face 3 (Quad -> 2 Triangles) - Yellow
+    prism.vertices[8]  = (TerminalVertex){ .position = {{ 1.0f, -1.0f, -1.0f }}, .normal = {{ 0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 255, 255, 0 } };
+    prism.vertices[9]  = (TerminalVertex){ .position = {{ 0.0f, -1.0f,  1.0f }}, .normal = {{ 0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 255, 255, 0 } };
+    prism.vertices[10] = (TerminalVertex){ .position = {{ 0.0f,  1.0f,  1.0f }}, .normal = {{ 0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 255, 255, 0 } };
+    prism.vertices[11] = (TerminalVertex){ .position = {{ 1.0f,  1.0f, -1.0f }}, .normal = {{ 0.866f, 0.0f, -0.5f }}, .color = (RGBcolor){ 255, 255, 0 } };
+
+    // Bottom Cap - Orange
+    prism.vertices[12] = (TerminalVertex){ .position = {{ 1.0f, -1.0f, -1.0f }}, .normal = {{ 0.0f, -1.0f, 0.0f }}, .color = (RGBcolor){ 255, 128, 0 } };
+    prism.vertices[13] = (TerminalVertex){ .position = {{-1.0f, -1.0f, -1.0f }}, .normal = {{ 0.0f, -1.0f, 0.0f }}, .color = (RGBcolor){ 255, 128, 0 } };
+    prism.vertices[14] = (TerminalVertex){ .position = {{ 0.0f, -1.0f,  1.0f }}, .normal = {{ 0.0f, -1.0f, 0.0f }}, .color = (RGBcolor){ 255, 128, 0 } };
+
+    // Top Cap - Lime Green
+    prism.vertices[15] = (TerminalVertex){ .position = {{ 0.0f,  1.0f,  1.0f }}, .normal = {{ 0.0f,  1.0f, 0.0f }}, .color = (RGBcolor){ 128, 255, 0 } };
+    prism.vertices[16] = (TerminalVertex){ .position = {{-1.0f,  1.0f, -1.0f }}, .normal = {{ 0.0f,  1.0f, 0.0f }}, .color = (RGBcolor){ 128, 255, 0 } };
+    prism.vertices[17] = (TerminalVertex){ .position = {{ 1.0f,  1.0f, -1.0f }}, .normal = {{ 0.0f,  1.0f, 0.0f }}, .color = (RGBcolor){ 128, 255, 0 } };
+
+    TerminalTriangle tempTriangles[8] = {
+        // Sides
+        { .indices = { 0,  1,  2  } }, { .indices = { 0,  2,  3  } },
+        { .indices = { 4,  5,  6  } }, { .indices = { 4,  6,  7  } },
+        { .indices = { 8,  9,  10 } }, { .indices = { 8,  10, 11 } },
+        // Caps
+        { .indices = { 12, 13, 14 } }, 
+        { .indices = { 15, 16, 17 } }  
+    };
+
+    for (size_t i = 0; i < 8; ++i)
+    {
+        prism.triangles[i] = tempTriangles[i];
+    }
+
+    prism.transform.position = (vec3s){{ 0.0f, 0.0f, 0.0f }};
+    prism.transform.rotation = (vec3s){{ 0.0f, 0.0f, 0.0f }};
+    prism.transform.scale    = (vec3s){{ 1.8f, 1.8f, 1.8f }};
+
+    return prism;
 }
 
 int32_t main(void)
@@ -61,29 +172,46 @@ int32_t main(void)
     frameCreate(&frame, TOP_LEFT_FRAME_POS, FULLSCREEN_FRAME_SIZE);
     frameSetFPS(&frame, 30);
 
-    // Initial camera placement
-    cameraSetPosition(&frame.camera, (vec3s){{ 0.0f, 1.5f, 4.5f }});
-    cameraSetTarget(&frame.camera,   (vec3s){{ 0.0f, 0.0f, 0.0f }});
+    // Camera setup
+    cameraSetPosition(&frame.camera, (vec3s){{ 0.0f, 1.5f, 10.0f }});
+    cameraSetTarget(&frame.camera,    (vec3s){{ 0.0f, 0.0f, 0.0f }});
 
-    TerminalLight sun = lightCreateDirectional((vec3s){{ 0.5f, -1.0f, -0.5f }}, (RGBcolor) { .r = 255, .g = 255, .b = 255 }, 1.0f);
+    // Ambient light floor
+    frame.ambientColor = (RGBcolor){ .r = 30, .g = 30, .b = 30 };
+    frame.ambientIntensity = 0.4f;
+
+    // Directional Light (Sun)
+    TerminalLight sun = lightCreateDirectional(
+        (vec3s){{ 0.5f, -1.0f, -0.5f }}, 
+        (RGBcolor){ .r = 220, .g = 230, .b = 255 }, 
+        1.0f
+    );
     frameAddDirectionalLight(&frame, sun);
 
-    TerminalMesh cube = createCubeMesh();
+    // Orbiting Point Light
+    TerminalLight pointLight = lightCreatePoint(
+        (vec3s){{ 0.0f, 0.0f, 0.0f }}, 
+        (RGBcolor){ .r = 255, .g = 200, .b = 100 }, 
+        1.5f
+    );
+    TerminalLightIndex pointLightIndex = frameAddPointLight(&frame, pointLight);
 
-    bool running     = true;
-    bool paused      = false;
-    bool wireframe   = false;
-    bool rotateCube  = true;  // Toggle with 'D'
-    bool moveCamera  = true;  // Toggle with 'W'
+    // Create the three meshes
+    TerminalMesh pyramid = createPyramidMesh();
+    TerminalMesh centerCube = createCubeMesh();
+    TerminalMesh prism = createPrismMesh();
+
+    bool running      = true;
+    bool paused       = false;
+    bool wireframe    = false;
+    bool rotateMesh   = true;
+    int  renderMode   = 0;   // 0: Pyramid, 1: Prism, 2: Cube
+    bool mKeyWasDown  = false;
 
     TerminalColor bg = terminalColorFromRGB(0, 0, 0);
-    float timeTracker = 0.0f;
-    float camAngle    = 0.0f;
     
-    // Persistent offsets for smooth toggling
-    float cubeRotX = 0.0f;
-    float cubeRotY = 0.0f;
-    float cubeRotZ = 0.0f;
+    float orbitTime   = 0.0f;
+    float meshRotTime = 0.0f;
 
     while (running)
     {
@@ -96,55 +224,61 @@ int32_t main(void)
         if (terminalIsKeyDown(KEY_A))
             wireframe = !wireframe;
         if (terminalIsKeyDown(KEY_D))
-            rotateCube = !rotateCube;
-        if (terminalIsKeyDown(KEY_W))
-            moveCamera = !moveCamera;
+            rotateMesh = !rotateMesh;
+
+        bool mIsDown = terminalIsKeyDown(KEY_S);
+        if (mIsDown && !mKeyWasDown)
+        {
+            renderMode = (renderMode + 1) % 3;
+        }
+        mKeyWasDown = mIsDown;
 
         if (paused) continue;
 
-        // Increment animation time tickers conditionally
-        if (rotateCube)
+        orbitTime += 0.03f;
+        if (rotateMesh)
         {
-            timeTracker += 0.04f;
-            cubeRotX = timeTracker * 0.5f;
-            cubeRotY = timeTracker;
-            cubeRotZ = timeTracker * 0.25f;
+            meshRotTime += 0.03f;
         }
 
-        if (moveCamera)
+        // --- Animations ---
+        pyramid.transform.rotation    = (vec3s){{ meshRotTime * 0.5f, meshRotTime, 0.0f }};
+        centerCube.transform.rotation = (vec3s){{ meshRotTime * 0.5f, meshRotTime, meshRotTime * 0.25f }};
+        prism.transform.rotation      = (vec3s){{ 0.0f, -meshRotTime * 0.7f, meshRotTime * 0.3f }};
+
+        float orbitRadius = 2.5f;
+        float lightX = cosf(orbitTime * 1.2f) * orbitRadius;
+        float lightZ = sinf(orbitTime * 1.2f) * orbitRadius;
+        float lightY = sinf(orbitTime * 0.6f) * 0.5f;
+
+        if (pointLightIndex != 0xFF)
         {
-            camAngle += 0.03f;
+            frame.pointLights[pointLightIndex].position = (vec3s){{ lightX, lightY, lightZ }};
         }
 
-        // 1. Update cube rotation transform
-        cube.transform.rotation = (vec3s){{ cubeRotX, cubeRotY, cubeRotZ }};
-
-        // 2. Camera Zooming (pulsing distance between close and far) + slow azimuth drift
-        float minRadius = 2.0f;
-        float maxRadius = 7.0f;
-        // Smoothly oscillate radius using a sine wave
-        float camRadius = minRadius + (maxRadius - minRadius) * 0.5f * (1.0f + sinf(camAngle * 0.6f));
-        float azimuth   = camAngle * 0.25f; // Slow rotation to view different faces
-        float camY      = 1.2f;             // Fixed slight elevation
-
-        float camX = camRadius * cosf(azimuth);
-        float camZ = camRadius * sinf(azimuth) + 2.0f;
-
-        cameraSetPosition(&frame.camera, (vec3s){{ camX, camY, camZ }});
-        cameraSetTarget(&frame.camera,   (vec3s){{ 0.0f, 0.0f, 0.0f }});
-
-        // Clear frame color and depth buffers
+        // --- Render Frame ---
         frameClear(&frame, bg);
 
-        // Draw mesh through the depth-tested pipeline
-        frameDrawMesh(&frame, &cube, wireframe);
+        switch (renderMode)
+        {
+            case 0:
+                frameDrawMesh(&frame, &pyramid, wireframe, SHADING_UNLIT);
+                break;
+            case 1:
+                frameDrawMesh(&frame, &prism, wireframe, SHADING_FLAT);
+                break;
+            case 2:
+                frameDrawMesh(&frame, &centerCube, wireframe, SHADING_SMOOTH);
+                break;
+        }
 
-        // Render frame to terminal
         frameRender(&frame);
     }
 
-    // Cleanup using your exact destroy signature
-    meshDestroy(&cube);
+    // Cleanup
+    meshDestroy(&pyramid);
+    meshDestroy(&centerCube);
+    meshDestroy(&prism);
     frameDestroy(&frame);
     terminalShutdown();
 

@@ -48,8 +48,9 @@ typedef struct terminalLight3D
 /// @brief : The vertex of a triangle in a mesh
 typedef struct terminalVertex3D
 {
-  FramePos position; ///< 3D coordinates in model space (x, y, z)
-  RGBcolor color;    ///< Base color or vertex attribute
+  FramePos position;  ///< 3D coordinates in model space (x, y, z)
+  FrameDir normal;    ///< Where is the normal                     
+  RGBcolor color;     ///< Base color or vertex attribute
 } TerminalVertex;
 
 /// @brief : A triangle is 3 indices to vertices
@@ -65,6 +66,16 @@ typedef struct transform3D
   FrameRotation rotation; ///< Euler angles (pitch, yaw, roll in radians)
   FrameDir      scale;    ///< Scaling factors (x, y, x), default to (1, 1, 1)
 } Transform3D;
+
+
+/// @brief : how would you like to color mesh 
+typedef enum terminalShadingMode
+{
+  SHADING_UNLIT = 0,  ///< I dont care about lights, just give the colors, I gave
+  SHADING_FLAT,       ///< I want flat shading that interacts with light
+  SHADING_SMOOTH,     ///< I want smooth shading, so that different pixels have different colors
+  SHADING_COUNT       ///< DO NOT USE
+} TerminalShadingMode;
 
 /// @brief : A mesh is just vertices, colors and triangles and a singular transform
 typedef struct terminalMesh3D

@@ -1,6 +1,7 @@
 #include "cglm/struct/mat4.h"
 #include "cglm/types-struct.h"
 #include "justLibrary.h"
+#include "rinyTenderer/renderer/_structs.h"
 #include "rinyTenderer/renderer/camera.h"
 #include "rinyTenderer/renderer/frame.h"
 #include <rinyTenderer/renderer/mesh.h>
@@ -66,27 +67,20 @@ JUST_LOCAL static inline mat4s mesh3DGetModelMatrix(const TerminalMesh* MESH)
   return model;
 }
 
-JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME)
+typedef struct projectedVertex
 {
-  JUST_ASSERT_DEBUG(FRAME != NULL);
-  JUST_ASSERT_DEBUG(MESH  != NULL);
-  JUST_ASSERT_DEBUG_MESSAGE(MESH->vertices != NULL, "[MESH] : Cannot draw a mesh with no vertices");
+  FramePos  pos;
+  bool      visible;
+} ProjectedVertex;
 
-  mat4s modelMatrix = mesh3DGetModelMatrix(MESH);  
+static void projectMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, const mat4s* MODEL_MATRIX, ProjectedVertex* PROJECTED_VERTICES)
+{
   mat4s viewMatrix  = camera3DGetViewMatrix(&FRAME->camera);
   mat4s projMatrix  = camera3DGetProjectionMatrix(&FRAME->camera);
 
   // - - - MVP  = Proj * View * Model
-  mat4s viewXmodel = glms_mat4_mul(viewMatrix, modelMatrix);
+  mat4s viewXmodel = glms_mat4_mul(viewMatrix, *MODEL_MATRIX);
   mat4s mvpMatrix  = glms_mat4_mul(projMatrix, viewXmodel);
-
-  typedef struct projectedVertex
-  {
-    FramePos  pos;
-    bool      visible;
-  } ProjectedVertex;
-
-  ProjectedVertex projected[MESH->vertexCount];
 
   // - - - Transform and project all vertices
   for (size_t i = 0; i < MESH->vertexCount; ++i)
@@ -99,7 +93,7 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
     if (clipPos4.w <= 0.0f)
     {
       JUST_LOG_DEBUG("[VERTEX %zu] CULLED: w <= 0 (w = %.2f)", i, clipPos4.w);
-      projected[i].visible = false;
+      PROJECTED_VERTICES[i].visible = false;
       continue;
     }
 
@@ -111,7 +105,7 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
     // - - - Frustrum check
     if (ndcX < -1.0f || ndcX > 1.0f || ndcY < -1.0f || ndcY > 1.0f || ndcZ < -1.0f || ndcZ > 1.0f)
     {
-      projected[i].visible = false;
+      PROJECTED_VERTICES[i].visible = false;
       continue;
     }
 
@@ -123,11 +117,223 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
     float     normalizedZ = (ndcZ + 1.0f) * 0.5f;
     uint16_t  depth16     = normalizedZ * 65535.0f;
 
-    projected[i].pos.x    = screenX;
-    projected[i].pos.y    = screenY;
-    projected[i].pos.z    = depth16;
-    projected[i].visible  = true;
+    PROJECTED_VERTICES[i].pos.x    = screenX;
+    PROJECTED_VERTICES[i].pos.y    = screenY;
+    PROJECTED_VERTICES[i].pos.z    = depth16;
+    PROJECTED_VERTICES[i].visible  = true;
   }
+}
+
+static void flatShadeMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, mat4s* MODEL_MATRIX, TerminalTriangle* TRIANGLE, RGBcolor* COLORS)
+{
+  int i0 = TRIANGLE->indices[0];
+  int i1 = TRIANGLE->indices[1];
+  int i2 = TRIANGLE->indices[2];
+
+  // - - - Flat shading
+  vec4s p0World4 = glms_mat4_mulv(*MODEL_MATRIX, glms_vec4(MESH->vertices[i0].position, 1.0f));
+  vec4s p1World4 = glms_mat4_mulv(*MODEL_MATRIX, glms_vec4(MESH->vertices[i1].position, 1.0f));
+  vec4s p2World4 = glms_mat4_mulv(*MODEL_MATRIX, glms_vec4(MESH->vertices[i2].position, 1.0f));
+
+  vec3s p0World = {{ p0World4.x, p0World4.y, p0World4.z }};
+  vec3s p1World = {{ p1World4.x, p1World4.y, p1World4.z }};
+  vec3s p2World = {{ p2World4.x, p2World4.y, p2World4.z }};
+
+  vec3s edge1   = glms_vec3_sub(p1World, p0World);
+  vec3s edge2   = glms_vec3_sub(p2World, p0World);
+  vec3s normal  = glms_vec3_normalize(glms_vec3_cross(edge1, edge2));
+
+  vec3s triCenter = 
+  {{ 
+     (p0World.x + p1World.x + p2World.x) / 3.0f, 
+     (p0World.y + p1World.y + p2World.y) / 3.0f, 
+     (p0World.z + p1World.z + p2World.z) / 3.0f 
+  }};
+
+  
+  RGBcolor v0 = MESH->vertices[i0].color;
+  RGBcolor v1 = MESH->vertices[i1].color;
+  RGBcolor v2 = MESH->vertices[i2].color;
+
+  int baseR = (v0.r + v1.r + v2.r) / 3;
+  int baseG = (v0.g + v1.g + v2.g) / 3;
+  int baseB = (v0.b + v1.b + v2.b) / 3;
+
+  float lightR = 0.0f;
+  float lightG = 0.0f;
+  float lightB = 0.0f;
+
+  // - - - Directional lights
+  for (uint8_t j = 0; j < FRAME->directionalLightCount; ++j)
+  {
+    TerminalLight light     = FRAME->directionalLights[j];
+    vec3s         lightDir  = glms_vec3_negate(light.direction);
+    float         dot       = glms_vec3_dot(normal, lightDir);
+
+    if (dot > 0.0f)
+    {
+      float diffuse = dot * light.intensity;
+      lightR += (light.color.r / 255.0f) * diffuse;
+      lightG += (light.color.g / 255.0f) * diffuse;
+      lightB += (light.color.b / 255.0f) * diffuse;
+    }
+  }
+
+  // - - - Point lights
+  for (uint8_t j = 0; j < FRAME->pointLightCount; ++j)
+  {
+    TerminalLight light     = FRAME->pointLights[j];
+    vec3s         lightVec  = glms_vec3_sub(light.position, triCenter);
+    float         distance  = glms_vec3_norm(lightVec);
+    vec3s         lightDir  = glms_vec3_scale(lightVec, 1.0f / (distance + 0.0001f));
+
+    float dot = glms_vec3_dot(normal, lightDir);
+    if (dot > 0.0f)
+    {
+      float attenuation = 1.0f / (1.0f + 0.1f * distance + 0.01f * (distance * distance));
+      float diffuse     = dot * attenuation * light.intensity;
+      
+      lightR += (light.color.r / 255.0f) * diffuse;
+      lightG += (light.color.g / 255.0f) * diffuse;
+      lightB += (light.color.b / 255.0f) * diffuse;
+    }
+  }
+
+  // - - - Cap light
+  lightR = lightR > 1.0f ? 1.0f : lightR;
+  lightG = lightG > 1.0f ? 1.0f : lightG;
+  lightB = lightB > 1.0f ? 1.0f : lightB;
+
+  // - - - Compute Ambient Floor
+  int ambR = (int)(FRAME->ambientColor.r * FRAME->ambientIntensity);
+  int ambG = (int)(FRAME->ambientColor.g * FRAME->ambientIntensity);
+  int ambB = (int)(FRAME->ambientColor.b * FRAME->ambientIntensity);
+
+  // - - - Multiply integer base colors directly by the accumulated lighting multipliers
+  int totalRed   = (int)(baseR * lightR) + ambR;
+  int totalGreen = (int)(baseG * lightG) + ambG;
+  int totalBlue  = (int)(baseB * lightB) + ambB;
+
+  uint8_t finalR = totalRed   > 255 ? 255 : (uint8_t)totalRed;
+  uint8_t finalG = totalGreen > 255 ? 255 : (uint8_t)totalGreen;
+  uint8_t finalB = totalBlue  > 255 ? 255 : (uint8_t)totalBlue;
+
+  RGBcolor color = (RGBcolor) {.r = finalR, .g = finalG, .b = finalB };
+  COLORS[0]      = color;
+  COLORS[1]      = color;
+  COLORS[2]      = color;
+}
+
+static void unlitShadeMesh(const TerminalMesh* MESH, const TerminalTriangle* TRIANGLE, RGBcolor* COLORS)
+{
+  RGBcolor c0 = MESH->vertices[TRIANGLE->indices[0]].color;
+  RGBcolor c1 = MESH->vertices[TRIANGLE->indices[1]].color;
+  RGBcolor c2 = MESH->vertices[TRIANGLE->indices[2]].color;
+
+  int finalR = (c0.r + c1.r + c2.r) / 3.0f;
+  int finalG = (c0.g + c1.g + c2.g) / 3.0f;
+  int finalB = (c0.b + c1.b + c2.b) / 3.0f;
+
+  RGBcolor color = (RGBcolor) { .r = finalR, .g = finalG, .b = finalB };
+  COLORS[0] = color;
+  COLORS[1] = color;
+  COLORS[2] = color;
+}
+
+static void smoothShadeMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, mat4s* modelMatrix, const TerminalTriangle* TRIANGLE, RGBcolor* COLORS)
+{
+  uint16_t indices[3] = { TRIANGLE->indices[0], TRIANGLE->indices[1], TRIANGLE->indices[2] };
+
+  for (int v = 0; v < 3; ++v)
+  {
+    uint16_t        idx   = indices[v];
+    TerminalVertex  vert  = MESH->vertices[idx];
+
+    // - - - Transform vertex position to world space
+    vec4s worldPos4 = glms_mat4_mulv(*modelMatrix, glms_vec4(vert.position, 1.0f));
+    vec3s worldPos  = {{ worldPos4.x, worldPos4.y, worldPos4.z }};
+
+    // - - -.Transform vertex normal to world space
+    vec4s normal4 = glms_mat4_mulv(*modelMatrix, glms_vec4(vert.normal, 0.0f));
+    vec3s normal  = glms_vec3_normalize((vec3s){{ normal4.x, normal4.y, normal4.z }});
+
+    RGBcolor baseColor = vert.color;
+
+    float lightR = 0.0f;
+    float lightG = 0.0f;
+    float lightB = 0.0f;
+
+    // - - - Directional lights
+    for (uint8_t j = 0; j < FRAME->directionalLightCount; ++j)
+    {
+      TerminalLight light     = FRAME->directionalLights[j];
+      vec3s         lightDir  = glms_vec3_negate(light.direction);
+      float         dot       = glms_vec3_dot(normal, lightDir);
+
+      if (dot > 0.0f)
+      {
+        float diffuse = dot * light.intensity;
+        lightR += (light.color.r / 255.0f) * diffuse;
+        lightG += (light.color.g / 255.0f) * diffuse;
+        lightB += (light.color.b / 255.0f) * diffuse;
+      }
+    }
+
+    // - - - Point lights
+    for (uint8_t j = 0; j < FRAME->pointLightCount; ++j)
+    {
+      TerminalLight light     = FRAME->pointLights[j];
+      vec3s         lightVec  = glms_vec3_sub(light.position, worldPos);
+      float         distance  = glms_vec3_norm(lightVec);
+      vec3s         lightDir  = glms_vec3_scale(lightVec, 1.0f / (distance + 0.0001f));
+
+      float dot = glms_vec3_dot(normal, lightDir);
+      if (dot > 0.0f)
+      {
+        float attenuation = 1.0f / (1.0f + 0.1f * distance + 0.01f * (distance * distance));
+        float diffuse     = dot * attenuation * light.intensity;
+
+        lightR += (light.color.r / 255.0f) * diffuse;
+        lightG += (light.color.g / 255.0f) * diffuse;
+        lightB += (light.color.b / 255.0f) * diffuse;
+      }
+    }
+
+    // - - - Cap lighting multiplier at 1.0f
+    lightR = lightR > 1.0f ? 1.0f : lightR;
+    lightG = lightG > 1.0f ? 1.0f : lightG;
+    lightB = lightB > 1.0f ? 1.0f : lightB;
+
+    // - - - Clean Ambient Contribution
+    float ambR = (FRAME->ambientColor.r / 255.0f) * FRAME->ambientIntensity;
+    float ambG = (FRAME->ambientColor.g / 255.0f) * FRAME->ambientIntensity;
+    float ambB = (FRAME->ambientColor.b / 255.0f) * FRAME->ambientIntensity;
+
+    // - - - Final Color Combination
+    int totalRed   = (int)(baseColor.r * (lightR + ambR));
+    int totalGreen = (int)(baseColor.g * (lightG + ambG));
+    int totalBlue  = (int)(baseColor.b * (lightB + ambB));
+
+    COLORS[v] = (RGBcolor)
+      {
+        .r = totalRed   > 255 ? 255 : (uint8_t)totalRed,
+        .g = totalGreen > 255 ? 255 : (uint8_t)totalGreen,
+        .b = totalBlue  > 255 ? 255 : (uint8_t)totalBlue
+      };
+  }
+}
+
+JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME, TerminalShadingMode SHADING)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG(MESH  != NULL);
+  JUST_ASSERT_DEBUG_MESSAGE(MESH->vertices != NULL, "[MESH] : Cannot draw a mesh with no vertices");
+  JUST_ASSERT_DEBUG_MESSAGE(SHADING < SHADING_COUNT, "[MESH] : Cannot draw a mesh with invalid SHADING");
+
+  // - - - project
+  mat4s           modelMatrix = mesh3DGetModelMatrix(MESH);
+  ProjectedVertex projected[MESH->vertexCount];
+  projectMesh(FRAME, MESH, &modelMatrix, projected);
 
   // - - - Rasterize mesh triangles into the depth buffer
   for (size_t i = 0; i < MESH->triangleCount; ++i)
@@ -158,105 +364,24 @@ JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool
     int32_t crossProduct = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
     if (crossProduct > 0) continue;
 
-    // - - - Flat shading
-    vec4s p0World4 = glms_mat4_mulv(modelMatrix, glms_vec4(MESH->vertices[i0].position, 1.0f));
-    vec4s p1World4 = glms_mat4_mulv(modelMatrix, glms_vec4(MESH->vertices[i1].position, 1.0f));
-    vec4s p2World4 = glms_mat4_mulv(modelMatrix, glms_vec4(MESH->vertices[i2].position, 1.0f));
-
-    vec3s p0World = {{ p0World4.x, p0World4.y, p0World4.z }};
-    vec3s p1World = {{ p1World4.x, p1World4.y, p1World4.z }};
-    vec3s p2World = {{ p2World4.x, p2World4.y, p2World4.z }};
-
-    vec3s edge1   = glms_vec3_sub(p1World, p0World);
-    vec3s edge2   = glms_vec3_sub(p2World, p0World);
-    vec3s normal  = glms_vec3_normalize(glms_vec3_cross(edge1, edge2));
-
-    vec3s triCenter = 
-    {{ 
-       (p0World.x + p1World.x + p2World.x) / 3.0f, 
-       (p0World.y + p1World.y + p2World.y) / 3.0f, 
-       (p0World.z + p1World.z + p2World.z) / 3.0f 
-    }};
-
-    
-    RGBcolor v0 = MESH->vertices[i0].color;
-    RGBcolor v1 = MESH->vertices[i1].color;
-    RGBcolor v2 = MESH->vertices[i2].color;
-
-    int baseR = (v0.r + v1.r + v2.r) / 3;
-    int baseG = (v0.g + v1.g + v2.g) / 3;
-    int baseB = (v0.b + v1.b + v2.b) / 3;
-
-    float lightR = 0.0f;
-    float lightG = 0.0f;
-    float lightB = 0.0f;
-
-    // - - - Directional lights
-    for (uint8_t j = 0; j < FRAME->directionalLightCount; ++j)
+    RGBcolor colors[3];
+    switch (SHADING)
     {
-      TerminalLight light     = FRAME->directionalLights[j];
-      vec3s         lightDir  = glms_vec3_negate(light.direction);
-      float         dot       = glms_vec3_dot(normal, lightDir);
-
-      if (dot > 0.0f)
-      {
-        float diffuse = dot * light.intensity;
-        lightR += (light.color.r / 255.0f) * diffuse;
-        lightG += (light.color.g / 255.0f) * diffuse;
-        lightB += (light.color.b / 255.0f) * diffuse;
-      }
+      case SHADING_UNLIT  : unlitShadeMesh(MESH, &(MESH->triangles[i]), colors);                        break;
+      case SHADING_FLAT   : flatShadeMesh(FRAME, MESH, &modelMatrix, &(MESH->triangles[i]), colors);    break;
+      case SHADING_SMOOTH : smoothShadeMesh(FRAME, MESH, &modelMatrix, &(MESH->triangles[i]), colors);  break;
+      default : return;
     }
-
-    // - - - Point lights
-    for (uint8_t j = 0; j < FRAME->pointLightCount; ++j)
-    {
-      TerminalLight light     = FRAME->pointLights[j];
-      vec3s         lightVec  = glms_vec3_sub(light.position, triCenter);
-      float         distance  = glms_vec3_norm(lightVec);
-      vec3s         lightDir  = glms_vec3_scale(lightVec, 1.0f / (distance + 0.0001f));
-
-      float dot = glms_vec3_dot(normal, lightDir);
-      if (dot > 0.0f)
-      {
-        float attenuation = 1.0f / (1.0f + 0.1f * distance + 0.01f * (distance * distance));
-        float diffuse     = dot * attenuation * light.intensity;
-        
-        lightR += (light.color.r / 255.0f) * diffuse;
-        lightG += (light.color.g / 255.0f) * diffuse;
-        lightB += (light.color.b / 255.0f) * diffuse;
-      }
-    }
-
-    // - - - Cap light
-    lightR = lightR > 1.0f ? 1.0f : lightR;
-    lightG = lightG > 1.0f ? 1.0f : lightG;
-    lightB = lightB > 1.0f ? 1.0f : lightB;
-
-    // - - - Compute Ambient Floor
-    int ambR = (int)(FRAME->ambientColor.r * FRAME->ambientIntensity);
-    int ambG = (int)(FRAME->ambientColor.g * FRAME->ambientIntensity);
-    int ambB = (int)(FRAME->ambientColor.b * FRAME->ambientIntensity);
-
-    // - - - Multiply integer base colors directly by the accumulated lighting multipliers
-    int totalRed   = (int)(baseR * lightR) + ambR;
-    int totalGreen = (int)(baseG * lightG) + ambG;
-    int totalBlue  = (int)(baseB * lightB) + ambB;
-
-    uint8_t finalR = totalRed   > 255 ? 255 : (uint8_t)totalRed;
-    uint8_t finalG = totalGreen > 255 ? 255 : (uint8_t)totalGreen;
-    uint8_t finalB = totalBlue  > 255 ? 255 : (uint8_t)totalBlue;
-
-    TerminalColor pixelColor = terminalColorFromRGB(finalR, finalG, finalB);
 
     if (WIREFRAME)
     {
-      frameLine(FRAME, projected[i0].pos, projected[i1].pos, pixelColor);
-      frameLine(FRAME, projected[i1].pos, projected[i2].pos, pixelColor);
-      frameLine(FRAME, projected[i2].pos, projected[i0].pos, pixelColor);
+      frameLine(FRAME, projected[i0].pos, projected[i1].pos, colors[0], colors[1]);
+      frameLine(FRAME, projected[i1].pos, projected[i2].pos, colors[1], colors[2]);
+      frameLine(FRAME, projected[i2].pos, projected[i0].pos, colors[2], colors[0]);
     }
     else
     {
-      frameTriangle(FRAME, projected[i0].pos, projected[i1].pos, projected[i2].pos, pixelColor);
+      frameTriangle(FRAME, projected[i0].pos, projected[i1].pos, projected[i2].pos, colors);
     }
   }
 }

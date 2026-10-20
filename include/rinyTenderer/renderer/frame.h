@@ -102,10 +102,11 @@ JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalCol
  * @param PIXEL_TEMPLATE : Pixels this line would be made of
  */
 JUST_API void frameLine(
-    TerminalFrame*  FRAME, 
-    FramePos        START_POS, 
-    FramePos        END_POS, 
-    TerminalColor   PIXEL_TEMPLATE);
+    TerminalFrame*    FRAME, 
+    FramePos          START_POS, 
+    FramePos          END_POS, 
+    RGBcolor          START_COLOR,
+    RGBcolor          END_COLOR);
 
 /**
  * @brief : Draws a triangle in the buffer
@@ -116,11 +117,11 @@ JUST_API void frameLine(
  * @parma PIXEL_TEMPLATE : Pixels this triangle would be made of
  */
 JUST_API void frameTriangle(
-    TerminalFrame*  FRAME, 
-    FramePos        POINT_A, 
-    FramePos        POINT_B, 
-    FramePos        POINT_C, 
-    TerminalColor   PIXEL_TEMPLATE);
+    TerminalFrame*    FRAME, 
+    FramePos          POINT_A, 
+    FramePos          POINT_B, 
+    FramePos          POINT_C, 
+    RGBcolor          COLORS[3]);
 
 // - - - Color and light
 /**

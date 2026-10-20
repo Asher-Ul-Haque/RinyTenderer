@@ -22,7 +22,7 @@ static inline TerminalLight lightCreatePoint(FramePos POSITION, RGBcolor COLOR, 
     {
       .color     = COLOR,
       .intensity = INTENSITY,
-      .position  = glms_vec3_normalize(POSITION)
+      .position  = POSITION
     };
 }
 

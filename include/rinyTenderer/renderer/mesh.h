@@ -23,4 +23,4 @@ JUST_API void meshDestroy(TerminalMesh* MESH);
  * @param MESH : What mesh to draw
  * @param WIREFRAME : Want a wireframe or full render 
  */
-JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME);
+JUST_API void frameDrawMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, bool WIREFRAME, TerminalShadingMode SHADING);
