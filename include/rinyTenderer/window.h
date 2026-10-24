@@ -14,35 +14,10 @@
 #include <unistd.h>
 
 
-/// @brief : Represents size of the terminal window
-typedef struct terminalSize
-{
-  union
-  {
-    struct
-    {
-      union
-      {
-        uint16_t rows;    ///< Height in character cells
-        uint16_t height;  ///< Height in character cells
-      };
-
-      union
-      {
-        uint16_t cols;    ///< Width in character cells
-        uint16_t width;   ///< Widht in character cells
-      };
-    };
-
-    struct
-    {
-      uint16_t x;
-      uint16_t y;
-    };
-  };
-} TerminalSize;
-
-typedef struct terminalSize TerminalPos;
+typedef vec2s TerminalPos;
+typedef vec2s TerminalPosRel;
+typedef vec2s TerminalSize;
+typedef vec2s TerminalSizeRel;
 
 /// @brief : Enum for keys
 typedef enum keyCode
@@ -94,18 +69,6 @@ JUST_API void         terminalUpdateSize(void);
 JUST_API TerminalSize terminalGetSize(void);
 
 /**
- * @brief : Return number of rows
- * @return : Number of rows as unsigned short
- */
-JUST_API uint16_t     terminalGetRows   (void);
-
-/**
- * @brief : Return number of cols
- * @return : Number of cols as unsigned short
- */
-JUST_API uint16_t     terminalGetCols   (void);
-
-/**
  * @brief : Return width 
  * @return : width as unsigned short
  */
@@ -154,7 +117,7 @@ JUST_API void terminalSetCursor(TerminalSize POSITION);
 
 /// @brief : Clear the terminal
 JUST_API static inline void terminalClear(void)
-{ fputs("\033[2J\033[H", stdout); }
+{ fputs("\033[0m\033[2J\033[H", stdout); }
 
 /// @brief : return terminal terminalContext
 JUST_LOCAL const TerminalCTX* terminalGetContext(void);

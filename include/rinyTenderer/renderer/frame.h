@@ -14,17 +14,10 @@
 
 
 /// @brief : Pass this for the frame to occupy all the window
-#define FULLSCREEN_FRAME_SIZE (TerminalPos) { .cols = 0, .rows = 0 }
+#define FULLSCREEN_FRAME_SIZE (TerminalPos) { .x = 0, .y = 0 }
 
 /// @brief : Pass this for the frame to be at the top left of the window 
-#define TOP_LEFT_FRAME_POS (TerminalPos) { .x = 1, .y = 1 } 
-
-/// @brief : No limits on fps, I paid for the entire CPU
-#define UNCAPPED_FRAME_FPS 0
-
-/// @brief : default target fps 
-#define DEFAULT_TARGET_FPS 30
-
+#define TOP_LEFT_FRAME_POS (TerminalPos) { .x = 0, .y = 0 } 
 
 // - - - | API | - - -
 
@@ -37,7 +30,16 @@
  * @param SIZE : What is the size of the frame
  * @warning : CRASHES on double init or out of bounds init
  */
-JUST_API void frameCreate(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE);
+JUST_API void frameCreateAbsolute(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE);
+
+/**
+ * @brief : Initializes the frame buffer and allocates memory
+ * @param FRAME : Which frame to initialize
+ * @param REL_POSITION : What is the top left of the frame (0.0f -> 1.0f);
+ * @param REL_SIZE : What is the size of the frame relatively (0.0f -> 1.0f)
+ * @warning : CRASHES on double init or out of bounds init
+ */
+JUST_API void frameCreateRelative(TerminalFrame* FRAME, TerminalPosRel REL_POS, TerminalSizeRel REL_SIZE);
 
 /**
  * @brief : Destroys a frame and frees memory
@@ -46,29 +48,11 @@ JUST_API void frameCreate(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSi
  */
 JUST_API void frameDestroy(TerminalFrame* FRAME);
 
-
-// - - - FPS
 /**
- * @brief : Sets the frame target fps
- * @param FRAME : Which frame
- * @param TARGET_FPS : The actual target
- */
-JUST_API static inline void frameSetFPS(TerminalFrame* FRAME, uint8_t TARGET_FPS)
-{
-  JUST_ASSERT_DEBUG(FRAME != NULL);
-  FRAME->targetFPS = TARGET_FPS;
-}
-
-/**
- * @brief : Returns the frame actual fps
- * @param FRAME : Which frames fps to get
- * @return : the actual fps 
- */
-JUST_API static inline uint8_t frameGetFPS(const TerminalFrame* FRAME)
-{
-  JUST_ASSERT_DEBUG(FRAME != NULL);
-  return FRAME->actualFPS;
-}
+  @brief : Checks the terminal window has resized and if so resizes the frame
+  @warning : Removes all data from the frame, if running at 30 fps, one of those will be empty
+*/
+JUST_API void frameResize(TerminalFrame* FRAME);
 
 
 // - - - Draw and clear

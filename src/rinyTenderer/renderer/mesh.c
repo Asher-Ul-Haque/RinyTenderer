@@ -1,4 +1,5 @@
 #include "cglm/struct/mat4.h"
+#include "cglm/struct/mat3.h"
 #include "cglm/types-struct.h"
 #include "justLibrary.h"
 #include "rinyTenderer/renderer/_structs.h"
@@ -110,8 +111,8 @@ static void projectMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, const ma
     }
 
     // - - - viewport mapping to frame pixel grid
-    float screenX = (ndcX + 1.0f) * 0.5f * (float) FRAME->size.width;
-    float screenY = (1.0f - ndcY) * 0.5f * (float) FRAME->size.height;
+    float screenX = (ndcX + 1.0f) * 0.5f * (float) FRAME->size.x;
+    float screenY = (1.0f - ndcY) * 0.5f * (float) FRAME->size.y;
 
     // - - - Map normalized depth to uint16_t depth range
     float     normalizedZ = (ndcZ + 1.0f) * 0.5f;
@@ -205,14 +206,13 @@ static void flatShadeMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, mat4s*
   lightB = lightB > 1.0f ? 1.0f : lightB;
 
   // - - - Compute Ambient Floor
-  int ambR = (int)(FRAME->ambientColor.r * FRAME->ambientIntensity);
-  int ambG = (int)(FRAME->ambientColor.g * FRAME->ambientIntensity);
-  int ambB = (int)(FRAME->ambientColor.b * FRAME->ambientIntensity);
+  float ambR = (FRAME->ambientColor.r / 255.0f) * FRAME->ambientIntensity;
+  float ambG = (FRAME->ambientColor.g / 255.0f) * FRAME->ambientIntensity;
+  float ambB = (FRAME->ambientColor.b / 255.0f) * FRAME->ambientIntensity;
 
-  // - - - Multiply integer base colors directly by the accumulated lighting multipliers
-  int totalRed   = (int)(baseR * lightR) + ambR;
-  int totalGreen = (int)(baseG * lightG) + ambG;
-  int totalBlue  = (int)(baseB * lightB) + ambB;
+  int totalRed   = (int)(baseR * (lightR + ambR));
+  int totalGreen = (int)(baseG * (lightG + ambG));
+  int totalBlue  = (int)(baseB * (lightB + ambB));
 
   uint8_t finalR = totalRed   > 255 ? 255 : (uint8_t)totalRed;
   uint8_t finalG = totalGreen > 255 ? 255 : (uint8_t)totalGreen;
@@ -254,8 +254,10 @@ static void smoothShadeMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, mat4
     vec3s worldPos  = {{ worldPos4.x, worldPos4.y, worldPos4.z }};
 
     // - - -.Transform vertex normal to world space
-    vec4s normal4 = glms_mat4_mulv(*modelMatrix, glms_vec4(vert.normal, 0.0f));
-    vec3s normal  = glms_vec3_normalize((vec3s){{ normal4.x, normal4.y, normal4.z }});
+    mat3s model3       = glms_mat4_pick3(*modelMatrix);
+    mat3s normalMatrix = glms_mat3_transpose(glms_mat3_inv(model3));
+    vec3s normal       = glms_mat3_mulv(normalMatrix, vert.normal);
+    normal             = glms_vec3_normalize(normal);
 
     RGBcolor baseColor = vert.color;
 

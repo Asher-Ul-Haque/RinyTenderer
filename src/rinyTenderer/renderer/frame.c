@@ -1,9 +1,9 @@
-#include "cglm/types.h"
 #include "rinyTenderer/renderer/_structs.h"
 #include <bits/time.h>
 #include <justLibrary.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
@@ -14,31 +14,56 @@
 
 JUST_API TerminalColor terminalColorFromRGB(uint8_t R, uint8_t G, uint8_t B)
 {
-  // - - - Check if the color is close to grayscale
-  if (R == G && G == B)
+  // - - - Allow a small channel tolerance (+-3)
+  if (abs((int)R - (int)G) <= 3 && abs((int)G - (int)B) <= 3)
   {
-    // - - - Pure black / white extremes
-    if (R < 8)   return 16;
-    if (R > 248) return 231;
+    if (R < 4)   return 16;  // Black
+    if (R > 243) return 231; // Pure White
     
-    // - - - Map to the 24-step grayscale ramp (codes 232 - 255) Formula: 232 + (brightness step from 0 to 23)
-    return 232 + (R - 8) * 24 / 247;
+    // - - - Map R in [8, 238] to 24 steps (code 232 to 255)
+    int grayIdx = (R - 3) / 10;
+    if (grayIdx < 0)  grayIdx = 0;
+    if (grayIdx > 23) grayIdx = 23;
+    return 232 + grayIdx;
   }
 
-  // - - - Otherwise, map to the 6x6x6 color cube (codes 16 - 231)
-  // - - - Scale R, G, B from [0, 255] down to [0, 5]
-  int ir = (R * 5) / 255;
-  int ig = (G * 5) / 255;
-  int ib = (B * 5) / 255;
+  // - - - Rounding for 6x6x6 color cube levels [0..5]
+  int ir = (R * 5 + 127) / 255;
+  int ig = (G * 5 + 127) / 255;
+  int ib = (B * 5 + 127) / 255;
 
-  // - - - Cube formula: 16 + 36 * r + 6 * g + b
   return (uint8_t)(16 + (36 * ir) + (6 * ig) + ib);
 }
 
+static inline TerminalSize resolveActualSize(TerminalSizeRel REL_SIZE)
+{
+  vec2s windowAbsSize = terminalGetContext()->size;
+  float termCols      = windowAbsSize.x;
+  float termRows      = windowAbsSize.y;
+  
+  uint16_t width  = (REL_SIZE.x <= 0.0f) ? (uint16_t)termCols : (uint16_t)(termCols * REL_SIZE.x);
+  uint16_t height = (REL_SIZE.y <= 0.0f) ? (uint16_t)termRows : (uint16_t)(termRows * REL_SIZE.y);
+  
+  return (TerminalSize)
+    {
+      .x = (float)width, 
+      .y = (float)height 
+    };
+}
+
+static inline TerminalPos resolveActualPos(TerminalPosRel REL_POS)
+{
+  vec2s windowAbsSize = terminalGetContext()->size;
+  return (TerminalPos)
+    {
+      .x = (float)(uint16_t)(windowAbsSize.x * REL_POS.x), 
+      .y = (float)(uint16_t)(windowAbsSize.y * REL_POS.y) 
+    };
+}
 
 // - - - Create and Destroy - - - 
 
-JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalSize SIZE)
+JUST_API void frameCreateAbsolute(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE)
 {
   JUST_LOG_DEBUG("[FRAME] : Creating a new frame");
 
@@ -55,15 +80,7 @@ JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalS
   {
     FRAME->size = SIZE;
   }
-
-  if (POSITION.x == 0 || POSITION.y == 0)
-  {
-    FRAME->position = TOP_LEFT_FRAME_POS;
-  }
-  else
-  {
-    FRAME->position = POSITION;
-  }
+  FRAME->position = POSITION;
 
   // - - - allocate 1D buffer : ((width + 1 for \n) * height) + 1 for \0
   size_t width      = FRAME->size.x;
@@ -72,8 +89,8 @@ JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalS
   
   JUST_LOG_DEBUG(
     "[FRAME] : Size = %u cols x %u rows",
-    (unsigned)FRAME->size.width,
-    (unsigned)FRAME->size.height);
+    (unsigned)FRAME->size.y,
+    (unsigned)FRAME->size.x);
 
   FRAME->backBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Allocation for this frame failed");
@@ -84,26 +101,14 @@ JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalS
   FRAME->depthBuffer = (uint16_t*) JUST_MALLOC_TAGGED(totalCells * sizeof(uint16_t), "TERM_BUFFER");
   JUST_ASSERT_MESSAGE(FRAME->depthBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
-  // - - - Populate buffer with spaces, newlines at row ends and \0 at the end
-  for (uint16_t r = 0; r < height; ++r)
-  {
-    size_t rowOffset = r * width;
-    for (uint16_t c = 0; c < width; ++c)
-    {
-      FRAME->backBuffer[rowOffset + c]  = 0;
-      FRAME->frontBuffer[rowOffset + c] = 0xFF;
-      FRAME->depthBuffer[rowOffset + c] = 0xFFFF;
-    }
-  }
-
-  // - - - setup fps
-  clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
-  FRAME->targetFPS = 30;
-  FRAME->actualFPS = 0;
+  // - - - refill
+  memset(FRAME->backBuffer,  0,    totalCells * sizeof(TerminalColor));
+  memset(FRAME->frontBuffer, 0xFF, totalCells * sizeof(TerminalColor));
+  memset(FRAME->depthBuffer, 0xFF, totalCells * sizeof(uint16_t));
 
   // - - - setup camera
   cameraInit(&FRAME->camera);
-  float aspectRatio = (float) FRAME->size.cols / (float) FRAME->size.rows;
+  float aspectRatio = (float) FRAME->size.x / (float) FRAME->size.y;
   cameraSetAspectRatio(&FRAME->camera, aspectRatio);
 
   // - - - initial ambience light
@@ -114,6 +119,24 @@ JUST_API void frameCreate(TerminalFrame* FRAME, TerminalSize POSITION, TerminalS
   frameClear(FRAME, 0);
 
   JUST_LOG_INFO("[FRAME] : Frame ready");
+}
+
+JUST_API void frameCreateRelative(TerminalFrame* FRAME, TerminalPosRel REL_POS, TerminalSizeRel REL_SIZE)
+{
+  JUST_LOG_DEBUG("[FRAME] : Creating relative frame");
+  JUST_ASSERT_DEBUG_MESSAGE(FRAME != NULL, "[FRAME] : Cannot init a NULL FRAME");
+
+  const TerminalCTX* ctx = terminalGetContext();
+
+  vec2s actualSize = resolveActualSize(REL_SIZE);
+  vec2s actualPos  = resolveActualPos(REL_POS); 
+
+  frameCreateAbsolute(FRAME, actualPos, actualSize);
+
+  FRAME->widthRatio = (ctx->size.x > 0) ? (float)actualSize.x / (float)ctx->size.x : 1.0f;
+  FRAME->relPos     = REL_POS;
+
+  JUST_LOG_INFO("[FRAME] : Relative frame ready (%u x %u)", (unsigned)actualSize.x, (unsigned)actualSize.y);
 }
 
 JUST_API void frameDestroy(TerminalFrame* FRAME)
@@ -132,6 +155,62 @@ JUST_API void frameDestroy(TerminalFrame* FRAME)
   JUST_LOG_INFO("[FRAME] : Destroyed");
 }
 
+JUST_API void frameResize(TerminalFrame* FRAME)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot resize, unitiialized FRAME");
+
+  const TerminalCTX* ctx = terminalGetContext();
+
+  // - - - calculate new sizes 
+  uint16_t  newWidth  = (uint16_t) (ctx->size.x * FRAME->widthRatio);
+  float     aspect    = (float) FRAME->size.x / (float) FRAME->size.y;
+  uint16_t  newHeight = (uint16_t) ((float) newWidth / aspect);
+
+  // - - - maintain a non-zero size
+  if (newWidth < 1)  newWidth  = 1;
+  if (newHeight < 1) newHeight = 1;
+
+  // - - - calculate new pos
+  vec2s newPos = 
+  {
+    .x = (uint16_t) (ctx->size.x * FRAME->relPos.x),
+    .y = (uint16_t) (ctx->size.y * FRAME->relPos.y)
+  };
+
+  if (newWidth  == FRAME->size.x      &&
+      newHeight == FRAME->size.y      &&
+      newPos.x  == FRAME->position.x  &&
+      newPos.y  == FRAME->position.y)
+  { return; }
+
+  // - - - assign new size and pos
+  FRAME->size     = (TerminalSize)
+    {
+      .x = (float)newWidth, 
+      .y = (float)newHeight 
+    };
+  FRAME->position = newPos;
+
+  // - - - realloc
+  size_t totalCells = (size_t) newWidth * (size_t) newHeight;
+
+  FRAME->backBuffer   = JUST_REALLOC(FRAME->backBuffer,  totalCells * sizeof(TerminalColor));
+  FRAME->frontBuffer  = JUST_REALLOC(FRAME->frontBuffer, totalCells * sizeof(TerminalColor));
+  FRAME->depthBuffer  = JUST_REALLOC(FRAME->depthBuffer, totalCells * sizeof(uint16_t));
+
+  JUST_ASSERT_DEBUG(FRAME->backBuffer  != NULL);
+  JUST_ASSERT_DEBUG(FRAME->frontBuffer != NULL);
+  JUST_ASSERT_DEBUG(FRAME->depthBuffer != NULL);
+
+  // - - - refill
+  memset(FRAME->backBuffer,  0,    totalCells * sizeof(TerminalColor));
+  memset(FRAME->frontBuffer, 0xFF, totalCells * sizeof(TerminalColor));
+  memset(FRAME->depthBuffer, 0xFF, totalCells * sizeof(uint16_t));
+
+  JUST_LOG_INFO("[FRAME] : Resized to %u x %u at (%u, %u)",
+      (uint16_t)newWidth, (uint16_t)newHeight, (uint16_t)newPos.x, (uint16_t)newPos.y);
+}
 
 // - - - Render and clear - - - 
 
@@ -141,8 +220,8 @@ JUST_API void frameRender(TerminalFrame* FRAME)
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot render in an uninitialized buffer");
 
   // - - - scan through and only write cells that changed
-  uint16_t width  = FRAME->size.width;
-  uint16_t height = FRAME->size.height;
+  uint16_t width  = FRAME->size.x;
+  uint16_t height = FRAME->size.y;
   uint16_t rows   = height / 2;
 
   for (uint16_t y = 0; y < rows; ++y)
@@ -194,8 +273,8 @@ JUST_API void frameRender(TerminalFrame* FRAME)
 
       printf("\033[38;5;%dm\033[48;5;%dm\033[%d;%dH%s", 
              fg, bg,
-             FRAME->position.rows + y, 
-             FRAME->position.cols + x, 
+             (int) FRAME->position.y + y, 
+             (int) FRAME->position.x + x, 
              ch);
 
         // - - - Sync front buffer
@@ -205,29 +284,6 @@ JUST_API void frameRender(TerminalFrame* FRAME)
     }
   }
   fflush(stdout);
-
-  // - - - update timer
-  struct timespec currentTime;
-  clock_gettime(CLOCK_MONOTONIC, &currentTime);
-
-  uint64_t targetNs  = FRAME->targetFPS > 0 ? 1000000000L / FRAME->targetFPS : 1;
-  uint64_t elapsedNs = (currentTime.tv_sec  - FRAME->lastFrameTime.tv_sec) * 1000000000L +
-                       (currentTime.tv_nsec - FRAME->lastFrameTime.tv_nsec);
-
-  if (elapsedNs == 0) elapsedNs = 1;
-  uint8_t instantFPS  = (uint8_t)(1000000000ULL / elapsedNs);
-  FRAME->actualFPS    = (FRAME->actualFPS == 0) ? instantFPS : (uint8_t)((FRAME->actualFPS * 4 + instantFPS) / 5);
-
-  if (elapsedNs < targetNs)
-  {
-    struct timespec sleepTime = 
-    { 
-      .tv_sec  = 0, 
-      .tv_nsec = targetNs - elapsedNs 
-    };
-    nanosleep(&sleepTime, NULL);
-  }
-  clock_gettime(CLOCK_MONOTONIC, &FRAME->lastFrameTime);
 }
 
 JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE)
@@ -235,15 +291,10 @@ JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE)
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot clear an uninitialized buffer");
 
-  for (uint16_t y = 0; y < FRAME->size.rows; ++y)
-  {
-    for (uint16_t x = 0; x < FRAME->size.cols; ++x)
-    {
-      size_t index              = y * FRAME->size.cols + x;
-      FRAME->backBuffer[index]  = PIXEL_TEMPLATE;
-      FRAME->depthBuffer[index] = 0xFFFF;
-    }
-  }
+  size_t totalCells = (size_t)FRAME->size.x * (size_t)FRAME->size.y; 
+
+  memset(FRAME->backBuffer,  PIXEL_TEMPLATE, totalCells * sizeof(TerminalColor));
+  memset(FRAME->depthBuffer, 0xFF,           totalCells * sizeof(uint16_t));
 }
 
 JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalColor PIXEL)
@@ -251,10 +302,10 @@ JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalCol
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Cannot draw in an uninitialized buffer");
 
-  if (POSITION.x >= FRAME->size.width)  return;
-  if (POSITION.y >= FRAME->size.height) return;
+  if (POSITION.x < 0 || POSITION.x >= FRAME->size.x) return;
+  if (POSITION.y < 0 || POSITION.y >= FRAME->size.y) return;
 
-  size_t index = POSITION.y * (FRAME->size.width) + POSITION.x;
+  size_t index = POSITION.y * (FRAME->size.x) + POSITION.x;
   if (POSITION.z > FRAME->depthBuffer[index]) return;
 
   FRAME->backBuffer[index]  = PIXEL;
@@ -434,7 +485,7 @@ JUST_API void frameTriangle(
   if (by != cy)
   {
     int segmentHeight = cy - by;
-    for (int y = by; y <= cy; ++y)
+    for (int y = by + 1; y <= cy; ++y)
     {
       int x1 = ax + ((cx - ax) * (y - ay)) / height;
       int z1 = az + ((cz - az) * (y - ay)) / height;

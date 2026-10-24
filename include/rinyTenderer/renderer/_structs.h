@@ -36,7 +36,7 @@ typedef struct rgbColor
 typedef struct terminalLight3D
 {
   RGBcolor color;     ///< The color the light emits
-  uint16_t intensity; ///< The intensity of this light
+  float    intensity; ///< The intensity of this light
 
   union
   {
@@ -108,25 +108,24 @@ typedef struct terminalCamera3D
 /// @brief : Say a frame in a window, a window can have multiple frames
 typedef struct terminalFrame
 {
-  TerminalSize    position;       ///< Where in the terminal
-  TerminalSize    size;           ///< How big is the terminal, use this for operations
+  TerminalPos     position;           ///< Where in the terminal
+  TerminalSize    size;               ///< How big is the terminal, use this for operations
 
-  TerminalColor*  backBuffer;     ///< Where to draw 
-  TerminalColor*  frontBuffer;    ///< What to show
-  uint16_t*       depthBuffer;    ///< How deep
+  float           widthRatio;         ///< Stored width multiplier for dynamic resizing
+  TerminalPosRel  relPos;             ///< Stored relative position for dynamic repositioning
 
-  struct timespec lastFrameTime;  ///< Last frame stat
-  uint8_t         targetFPS;      ///< duh
-  uint8_t         actualFPS;      ///< duh
+  TerminalColor*  backBuffer;         ///< Where to draw 
+  TerminalColor*  frontBuffer;        ///< What to show
+  uint16_t*       depthBuffer;        ///< How deep
 
-  TerminalCamera  camera;         ///< The camera                                  
+  TerminalCamera  camera;             ///< The camera                                         
 
-  RGBcolor        ambientColor;                           ///< Global ambient color
-  float           ambientIntensity;                       ///< Global ambient intensity multiplier
+  RGBcolor        ambientColor;                       ///< Global ambient color
+  float           ambientIntensity;                   ///< Global ambient intensity multiplier
 
   TerminalLight   directionalLights[MAX_FRAME_LIGHTS];    ///< Fixed array of light sources
   uint8_t         directionalLightCount;                  ///< How many lights
 
-  TerminalLight   pointLights[MAX_FRAME_LIGHTS];          ///< Fixed array of light sources                                                       
-  uint8_t         pointLightCount;                        ///< How many point lights                                                       
+  TerminalLight   pointLights[MAX_FRAME_LIGHTS];          ///< Fixed array of light sources                                                                 
+  uint8_t         pointLightCount;                        ///< How many point lights                                                                        
 } TerminalFrame;

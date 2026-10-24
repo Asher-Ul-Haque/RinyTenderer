@@ -140,12 +140,12 @@ JUST_API void terminalUpdateSize(void)
   struct winsize windowSize;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &windowSize);
 
-  if (windowSize.ws_row != ctx.size.rows || windowSize.ws_col != ctx.size.cols)
+  if (windowSize.ws_row != ctx.size.y || windowSize.ws_col != ctx.size.x)
   {
     JUST_LOG_INFO("[TERMINAL] : Size updated to %u rows and %u cols", windowSize.ws_row, windowSize.ws_col);
   }
-  ctx.size.rows = windowSize.ws_row * 2;
-  ctx.size.cols = windowSize.ws_col;
+  ctx.size.y = windowSize.ws_row * 2;
+  ctx.size.x = windowSize.ws_col;
 }
 
 JUST_API void terminalSetCursor(TerminalSize POSITION)
@@ -153,7 +153,7 @@ JUST_API void terminalSetCursor(TerminalSize POSITION)
   ENSURE_AFTER_INIT;
 
   ctx.cursorPos = POSITION;
-  printf("\033[%d;%dH", POSITION.rows, POSITION.cols);
+  printf("\033[%d;%dH", (int)POSITION.y, (int)POSITION.x);
 }
 
 JUST_API void terminalPollInput(void)
