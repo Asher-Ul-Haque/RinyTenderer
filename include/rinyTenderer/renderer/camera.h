@@ -6,7 +6,7 @@
 #pragma once
 #include <cglm/cam.h>
 #include <cglm/struct/cam.h>
-#include <rinyTenderer/renderer/_structs.h>
+#include <rinyTenderer/_structs.h>
 
 
 /**

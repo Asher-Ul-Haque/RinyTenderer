@@ -2,7 +2,7 @@
 #include "cglm/struct/mat3.h"
 #include "cglm/types-struct.h"
 #include "justLibrary.h"
-#include "rinyTenderer/renderer/_structs.h"
+#include "rinyTenderer/_structs.h"
 #include "rinyTenderer/renderer/camera.h"
 #include "rinyTenderer/renderer/frame.h"
 #include <rinyTenderer/renderer/mesh.h>
@@ -20,10 +20,10 @@ JUST_API void meshCreate(TerminalMesh* MESH, size_t VERTEX_COUNT, size_t TRIANGL
   size_t vertexBytes    = VERTEX_COUNT    * sizeof(TerminalVertex);
   size_t triangleBytes  = TRIANGLE_COUNT  * sizeof(TerminalTriangle);
 
-  MESH->vertices = (TerminalVertex*) JUST_MALLOC_TAGGED(vertexBytes, "TERM_MESH");
+  MESH->vertices = (TerminalVertex*) JUST_MALLOC_TAGGED(vertexBytes, RINY_TENDERER_TAG);
   JUST_ASSERT_DEBUG_MESSAGE(MESH->vertices != NULL, "[MESH] : Vertex allocation failed");
 
-  MESH->triangles = (TerminalTriangle*) JUST_MALLOC_TAGGED(triangleBytes, "TERM_MESH");
+  MESH->triangles = (TerminalTriangle*) JUST_MALLOC_TAGGED(triangleBytes, RINY_TENDERER_TAG);
   JUST_ASSERT_DEBUG_MESSAGE(MESH->triangles != NULL, "[MESH] : Triangle allocation failed");
 
   // - - - Initialize default transform : Pos (0, 0, 0), Rot (0, 0, 0), Scale (1,1, 1)

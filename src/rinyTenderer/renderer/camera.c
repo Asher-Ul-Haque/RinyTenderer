@@ -1,5 +1,4 @@
 #include "justLibrary.h"
-#include "rinyTenderer/renderer/_structs.h"
 #include <rinyTenderer/renderer/camera.h>
 
 JUST_API void cameraInit(TerminalCamera* CAMERA)

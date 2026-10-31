@@ -1,7 +1,7 @@
 #pragma once
 #include <justLibrary.h>
 #include <cglm/struct.h>
-#include <rinyTenderer/renderer/_structs.h>
+#include <rinyTenderer/_structs.h>
 
 /**
  * @brief : Creates a new mesh

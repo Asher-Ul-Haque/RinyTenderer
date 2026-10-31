@@ -1,4 +1,4 @@
-#include "rinyTenderer/renderer/_structs.h"
+#include "rinyTenderer/_structs.h"
 #include <bits/time.h>
 #include <justLibrary.h>
 #include <rinyTenderer/window.h>
@@ -92,13 +92,13 @@ JUST_API void frameCreateAbsolute(TerminalFrame* FRAME, TerminalPos POSITION, Te
     (unsigned)FRAME->size.y,
     (unsigned)FRAME->size.x);
 
-  FRAME->backBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), "TERM_BUFFER");
+  FRAME->backBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), RINY_TENDERER_TAG);
   JUST_ASSERT_MESSAGE(FRAME->backBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
-  FRAME->frontBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), "TERM_BUFFER");
+  FRAME->frontBuffer = (TerminalColor*) JUST_MALLOC_TAGGED(totalCells * sizeof(TerminalColor), RINY_TENDERER_TAG);
   JUST_ASSERT_MESSAGE(FRAME->frontBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
-  FRAME->depthBuffer = (uint16_t*) JUST_MALLOC_TAGGED(totalCells * sizeof(uint16_t), "TERM_BUFFER");
+  FRAME->depthBuffer = (uint16_t*) JUST_MALLOC_TAGGED(totalCells * sizeof(uint16_t), RINY_TENDERER_TAG);
   JUST_ASSERT_MESSAGE(FRAME->depthBuffer != NULL, "[FRAME] : Allocation for this frame failed");
 
   // - - - refill

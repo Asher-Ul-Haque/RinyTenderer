@@ -1,4 +1,5 @@
 #include "justLibrary.h"
+#include "rinyTenderer/_structs.h"
 #include <rinyTenderer/window.h>
 #include <unistd.h>
 
@@ -40,7 +41,7 @@ static bool terminalDisableRawMode(void)
 
 static void terminalInputInit(void)
 {
-  bool ok = justBitsetCreate(&ctx.keys, KEY_CODE_COUNT, NULL, "TERMINAL_INPUT");
+  bool ok = justBitsetCreate(&ctx.keys, KEY_CODE_COUNT, NULL, RINY_TENDERER_TAG);
   JUST_ASSERT_DEBUG_MESSAGE(ok, "[TERMINAL] : Failed to create bitset for input");
 
   justBitsetClearAll(&ctx.keys);
@@ -106,7 +107,7 @@ JUST_API void terminalInit(void)
   terminalUpdateSize();
 
   size_t mb_1 = 1024 * 1024;
-  justMemorySetLimit(mb_1, "TERM_BUFFER");
+  justMemorySetLimit(mb_1, RINY_TENDERER_TAG);
   JUST_ASSERT_MESSAGE((tcgetattr(STDIN_FILENO, &ctx.origTermios) != -1), "[TERMINAL] : Failed to save original state");
   JUST_ASSERT_DEBUG(terminalEnableRawMode());
   terminalHideCursor();

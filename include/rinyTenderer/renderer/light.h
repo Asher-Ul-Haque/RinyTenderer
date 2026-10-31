@@ -4,7 +4,7 @@
 #include <cglm/types-struct.h>
 #include <justLibrary.h>
 #include <stdint.h>
-#include <rinyTenderer/renderer/_structs.h>
+#include <rinyTenderer/_structs.h>
 
 static inline TerminalLight lightCreateDirectional(FramePos DIRECTION, RGBcolor COLOR, float INTENSITY)
 {

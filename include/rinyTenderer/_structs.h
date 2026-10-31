@@ -5,6 +5,9 @@
  * @brief : Stores common structs
 */
 
+#define RINY_TENDERER_TAG           "RINY_TENDERER"
+#define TERMINAL_COLOR_TRANSPARENT  0xFF
+
 #include <cglm/types-struct.h>
 #include <justLibrary.h>
 #include <rinyTenderer/window.h>

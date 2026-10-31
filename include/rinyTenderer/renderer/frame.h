@@ -7,7 +7,7 @@
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/camera.h>
 #include <rinyTenderer/renderer/light.h>
-#include <rinyTenderer/renderer/_structs.h>
+#include <rinyTenderer/_structs.h>
 #include <stdint.h>
 
 
