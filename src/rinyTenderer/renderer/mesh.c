@@ -5,6 +5,7 @@
 #include "rinyTenderer/_structs.h"
 #include "rinyTenderer/renderer/camera.h"
 #include "rinyTenderer/renderer/frame.h"
+#include <rinyTenderer/renderer/primitiveGeometry.h>
 #include <rinyTenderer/renderer/mesh.h>
 #include <stdint.h>
 
@@ -110,9 +111,9 @@ static void projectMesh(TerminalFrame* FRAME, const TerminalMesh* MESH, const ma
       continue;
     }
 
-    // - - - viewport mapping to frame pixel grid
+    // - - - viewport mapping to frame pixel grid (Fixed: multiplied by FRAME->size.y * 2.0f)
     float screenX = (ndcX + 1.0f) * 0.5f * (float) FRAME->size.x;
-    float screenY = (1.0f - ndcY) * 0.5f * (float) FRAME->size.y;
+    float screenY = (1.0f - ndcY) * 0.5f * ((float) FRAME->size.y * 2.0f);
 
     // - - - Map normalized depth to uint16_t depth range
     float     normalizedZ = (ndcZ + 1.0f) * 0.5f;

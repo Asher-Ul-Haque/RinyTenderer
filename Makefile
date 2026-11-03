@@ -12,7 +12,7 @@ BUILD_DIR     := .build/$(MODE)
 # - - - Compiler & Flags - - -
 CC            := clang
 COMMON_FLAGS  := -std=c11 -Wall -Werror -Wpedantic -fPIC -fvisibility=hidden -march=native -fopenmp
-DEBUG_FLAGS   := -O3 -g
+DEBUG_FLAGS   := -O0 -g
 RELEASE_FLAGS := -O3
 
 CPPFLAGS      := -I$(INCLUDE_DIR) -MMD -MP -D_POSIX_C_SOURCE=200809L

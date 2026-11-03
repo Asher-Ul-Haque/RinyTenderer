@@ -1,6 +1,6 @@
 /**
  * @file : frame.h
- * @brief : Handles framebuffer and viewport thingies
+ * @brief : Handles framebuffer and viewport thingies with unified depth-tested cells
  */
 
 #pragma once
@@ -10,17 +10,15 @@
 #include <rinyTenderer/_structs.h>
 #include <stdint.h>
 
-
-
-
 /// @brief : Pass this for the frame to occupy all the window
 #define FULLSCREEN_FRAME_SIZE (TerminalPos) { .x = 0, .y = 0 }
 
 /// @brief : Pass this for the frame to be at the top left of the window 
 #define TOP_LEFT_FRAME_POS (TerminalPos) { .x = 0, .y = 0 } 
 
-// - - - | API | - - -
+#define CELL_SIZE_CHARS 4
 
+// - - - | API | - - -
 
 // - - - Life cycle
 /**
@@ -49,9 +47,9 @@ JUST_API void frameCreateRelative(TerminalFrame* FRAME, TerminalPosRel REL_POS, 
 JUST_API void frameDestroy(TerminalFrame* FRAME);
 
 /**
-  @brief : Checks the terminal window has resized and if so resizes the frame
-  @warning : Removes all data from the frame, if running at 30 fps, one of those will be empty
-*/
+ * @brief : Checks the terminal window has resized and if so resizes the frame
+ * @warning : Removes all data from the frame, if running at 30 fps, one of those will be empty
+ */
 JUST_API void frameResize(TerminalFrame* FRAME);
 
 
@@ -63,56 +61,37 @@ JUST_API void frameResize(TerminalFrame* FRAME);
 JUST_API void frameRender(TerminalFrame* FRAME);
 
 /**
- * @brief : Clears a frame buffer
+ * @brief : Clears a frame buffer and depth buffer
  * @param FRAME : Which frame to clear
- * @param PIXEL_TEMPLATE : What to clear with 
+ * @param PIXEL_TEMPLATE : What color/template to clear background with 
  */
 JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE);
 
-// - - - Basic geometry
+
+// - - - Basic geometry and text
 /**
- * @brief : Sets a specific pixel in the frame
+ * @brief : Sets a specific pixel/mesh fragment in the frame with depth testing
  * @param FRAME : Which frame
- * @param POSITION : Where
- * @param PIXEL : What
+ * @param POSITION : Where (FramePos / vec3s)
+ * @param COLOR : Pixel color
+ * @param DEPTH : Depth value for depth testing
  */
-JUST_API void frameSetPixel(TerminalFrame* FRAME, FramePos POSITION, TerminalColor PIXEL);
+JUST_API void frameSetPixel(
+    TerminalFrame*  FRAME, 
+    FramePos        POSITION, 
+    TerminalColor   COLOR);
 
 /**
- * @brief : Draws a line in the buffer
- * @param FRAME : Which frame to draw in
- * @param START_POS : The line start pos
- * @param END_POS : The line end pos
- * @param PIXEL_TEMPLATE : Pixels this line would be made of
+ * @brief : Sets a specific character/text cell in the frame with foreground, background, and depth testing
+ * @param FRAME : Which frame
+ * @param POSITION : Where (FramePos / vec3s; y-coordinate snaps to even rows for text alignment)
+ * @param CHAR : Raw UTF-8 character string (up to 4 bytes)
+ * @param FG_COLOR : Foreground text color
+ * @param BG_COLOR : Background cell color
  */
-JUST_API void frameLine(
-    TerminalFrame*    FRAME, 
-    FramePos          START_POS, 
-    FramePos          END_POS, 
-    RGBcolor          START_COLOR,
-    RGBcolor          END_COLOR);
-
-/**
- * @brief : Draws a triangle in the buffer
- * @param FRAME : Which frame to draw in 
- * @param POINT_A : Vertex A of triangle
- * @param POINT_B : Vertex B of triangle
- * @param POINT_C : Vertex C of triangle
- * @parma PIXEL_TEMPLATE : Pixels this triangle would be made of
- */
-JUST_API void frameTriangle(
-    TerminalFrame*    FRAME, 
-    FramePos          POINT_A, 
-    FramePos          POINT_B, 
-    FramePos          POINT_C, 
-    RGBcolor          COLORS[3]);
-
-// - - - Color and light
-/**
- * @brief : Converts a char and rgb color to terminal color space 
- * @param R : Red
- * @param G : Green
- * @param B : Blue
- */
-JUST_API TerminalColor terminalColorFromRGB(uint8_t R, uint8_t G, uint8_t B);
-
+JUST_API void frameSetChar(
+    TerminalFrame*  FRAME, 
+    FramePos        POSITION, 
+    const char*     CHAR, 
+    TerminalColor   FG_COLOR, 
+    TerminalColor   BG_COLOR);

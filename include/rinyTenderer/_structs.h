@@ -5,6 +5,7 @@
  * @brief : Stores common structs
 */
 
+#include <stdint.h>
 #define RINY_TENDERER_TAG           "RINY_TENDERER"
 #define TERMINAL_COLOR_TRANSPARENT  0xFF
 
@@ -108,6 +109,8 @@ typedef struct terminalCamera3D
 
 #define MAX_FRAME_LIGHTS 5
 
+#define CELL_SIZE_CHARs 4
+
 /// @brief : Say a frame in a window, a window can have multiple frames
 typedef struct terminalFrame
 {
@@ -117,9 +120,17 @@ typedef struct terminalFrame
   float           widthRatio;         ///< Stored width multiplier for dynamic resizing
   TerminalPosRel  relPos;             ///< Stored relative position for dynamic repositioning
 
-  TerminalColor*  backBuffer;         ///< Where to draw 
-  TerminalColor*  frontBuffer;        ///< What to show
-  uint16_t*       depthBuffer;        ///< How deep
+  // - - - Draw buffers
+  char* backChars; ///< Back buffer characters (width * height * CELL_SIZE_CHARs)
+  char* frontChars; ///< Front buffer chars for change detection
+
+  TerminalColor* backFg; ///< Back buffer foreground colors
+  TerminalColor* frontFg; ///< Front buffer foreground colors
+  
+  TerminalColor* backBg; ///< Back buffer foreground colors
+  TerminalColor* frontBg; ///< Front buffer background colors
+
+  uint16_t* depthBuffer;  ///< Per-pixel depth values for depth testing
 
   TerminalCamera  camera;             ///< The camera                                         
 
