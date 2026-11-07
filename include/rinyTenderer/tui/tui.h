@@ -4,20 +4,60 @@
 #include <rinyTenderer/_structs.h>
 #include <justLibrary.h>
 
-JUST_API void tuiInit(void);
 
-JUST_API void tuiDestroy(void);
+// - - - TUI Box & Panel Drawing - - -
 
-JUST_API void tuiResize(void);
+typedef enum tuiBoxType
+{
+  ROUNDED,
+  SHARP,
+  HEAVY,
+  DOUBLE,
+  ASCII
+} TuiBoxType;
 
-JUST_API void tuiClear(void);
+JUST_API void tuiDrawBox(
+    TerminalFrame*  FRAME, 
+    FramePos        TOP_LEFT,
+    FramePos        BOTTOM_RIGHT,
+    TerminalColor   COLOR,
+    TuiBoxType      BOX_TYPE);
 
-JUST_API void tuiRender(void);
+JUST_API void tuiFillRect(
+    TerminalFrame*  FRAME,
+    FramePos        TOP_LEFT,
+    FramePos        BOTTOM_RIGHT,
+    const char*     CHARACTER,
+    TerminalColor   FG_COLOR,
+    TerminalColor   BG_COLOR);
 
-JUST_API void tuiSetChar(TerminalPos POSITION, const char* CHAR, TerminalColor FG_COLOR, TerminalColor BG_COLOR);
 
-JUST_API void tuiAddRect(
-    TerminalPos   TOP_LEFT, 
-    TerminalPos   BOTTOM_RIGHT, 
-    TerminalColor COLOR,
-    bool          ROUNDED);
+// - - - TUI Text & Label Rendering - - -
+
+JUST_API void tuiDrawText(
+    TerminalFrame*  FRAME,
+    FramePos        POSITION,
+    const char*     TEXT,
+    size_t          TEXT_LENGTH,
+    TerminalColor   FG_COLOR,
+    TerminalColor   BG_COLOR);
+
+JUST_API void tuiDrawTextCentered(
+    TerminalFrame*  FRAME,
+    FramePos        POSITION,
+    uint16_t        WIDTH,
+    const char*     TEXT,
+    size_t          TEXT_LENGTH,
+    TerminalColor   FG_COLOR,
+    TerminalColor   BG_COLOR);
+
+
+// - - - TUI Widgets & Meters - - -
+
+JUST_API void tuiDrawProgressBar(
+    TerminalFrame*  FRAME,
+    FramePos        POSITION,
+    uint16_t        WIDTH,
+    float           PROGRESS,
+    TerminalColor   FILL_COLOR,
+    TerminalColor   EMPTY_COLOR);

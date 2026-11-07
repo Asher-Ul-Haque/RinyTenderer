@@ -1,4 +1,5 @@
 #include "rinyTenderer/_structs.h"
+#include "rinyTenderer/tui/tui.h"
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
@@ -42,6 +43,7 @@ int main(void)
 
     float angle = 0.0f;
     bool running = true;
+    int dir = 1;
     while (running)
     {
         terminalPollInput();
@@ -51,11 +53,13 @@ int main(void)
         }
 
         // --- Orbit Camera Around Origin ---
-        angle += 0.03f;
+        angle += 0.03f * dir;
         float radius = 3.0f;
         float camX = sinf(angle) * radius;
         float camZ = cosf(angle) * radius;
         cameraSetPosition(&gameFrame.camera, (vec3s){ .x = camX, .y = 0.0f, .z = camZ });
+
+        if (angle > 1 || angle < 0) dir = -dir;
 
         // --- Render Pipeline ---
         frameClear(&gameFrame, clearColor);
@@ -63,16 +67,24 @@ int main(void)
         // Draw the single mesh using unlit shading
         frameDrawMesh(&gameFrame, &triMesh, false, SHADING_UNLIT);
 
-        // Draw title string character by character
-        TerminalColor titleFg = terminalColorFromRGB(255, 255, 255);
-        TerminalColor titleBg = terminalColorFromRGB(60, 60, 90);
-        const char* title = "RINY 3D CAMERA ORBIT";
-        for (int i = 0; title[i] != '\0'; i++)
-        {
-            char cStr[2] = { title[i], '\0' };
-            FramePos charPos = { .x = 2.0f + (float)i, .y = 1.0f, .z = 0.0f };
-            frameSetChar(&gameFrame, charPos, cStr, titleFg, titleBg);
-        }
+        // - - - Add TUI - - - 
+        
+        // - - - Add a box
+        FramePos boxTopLeft  = { .x = 4.0f, .y = 2.0f, .z = 10.0f };
+        FramePos boxBotRight = { .x = 60.0f, .y = 20.0f, .z = 10.0f };
+        tuiDrawBox(&gameFrame, boxTopLeft, boxBotRight, 51, ROUNDED);
+
+        // - - - Add a title
+        FramePos titlePos = { .x = 6.0f, .y = 4.0f, .z = 9.0f };
+        tuiDrawTextCentered(&gameFrame, titlePos, 52, "RINY TENDERER - TUI DEMO", 25, 231, TERMINAL_COLOR_TRANSPARENT);
+
+        // - - - Add a regular label
+        FramePos labelPos = { .x = 8.0f, .y = 8.0f, .z = 9.0f };
+        tuiDrawText(&gameFrame, labelPos, "Status: Running smoothly", 24, 46, TERMINAL_COLOR_TRANSPARENT);
+
+        // - - - Add a dynamic progress bar
+        FramePos barPos = { .x = 8.0f, .y = 12.0f, .z = 9.0f };
+        tuiDrawProgressBar(&gameFrame, barPos, 44, angle, 40, 238);
 
         // Flush frame to terminal output
         frameRender(&gameFrame);
