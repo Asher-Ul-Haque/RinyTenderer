@@ -42,9 +42,13 @@ static bool terminalDisableRawMode(void)
 static void terminalInputInit(void)
 {
   bool ok = justBitsetCreate(&ctx.keys, KEY_CODE_COUNT, NULL, RINY_TENDERER_TAG);
-  JUST_ASSERT_DEBUG_MESSAGE(ok, "[TERMINAL] : Failed to create bitset for input");
+  JUST_ASSERT_DEBUG(ok);
+
+  ok = JUST_QUEUE_INIT_TAGGED(&ctx.text, 32, char, RINY_TENDERER_TAG);
+  JUST_ASSERT_DEBUG(ok);
 
   justBitsetClearAll(&ctx.keys);
+  justQueueClear(&ctx.text);
 }
 
 static KeyCode parseKeyCode(void)
