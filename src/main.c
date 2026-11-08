@@ -72,15 +72,36 @@ int main(void)
         // - - - Add a box
         FramePos boxTopLeft  = { .x = 4.0f, .y = 2.0f, .z = 10.0f };
         FramePos boxBotRight = { .x = 60.0f, .y = 20.0f, .z = 10.0f };
-        tuiDrawBox(&gameFrame, boxTopLeft, boxBotRight, 51, ROUNDED);
+        tuiDrawBox(&gameFrame, 
+            (TuiBox)
+            {
+              .topLeft = boxTopLeft, 
+              .bottomRight = boxBotRight, 
+              .color = 51, 
+              .boxType = ROUNDED
+            });
 
         // - - - Add a title
         FramePos titlePos = { .x = 6.0f, .y = 4.0f, .z = 9.0f };
-        tuiDrawTextCentered(&gameFrame, titlePos, 52, "RINY TENDERER - TUI DEMO", 25, 231, TERMINAL_COLOR_TRANSPARENT);
+        tuiDrawTextCentered(&gameFrame, 
+            (TuiTextCentered)
+            { 
+            .position = titlePos, 
+            .width = 52, 
+            .text = "RINY TENDERER - TUI DEMO", 
+            .maxLen = 25, 
+            .fgColor = 231, 
+            .bgColor = TERMINAL_COLOR_TRANSPARENT});
 
         // - - - Add a regular label
         FramePos labelPos = { .x = 8.0f, .y = 8.0f, .z = 9.0f };
-        tuiDrawText(&gameFrame, labelPos, "Status: Running smoothly", 24, 46, TERMINAL_COLOR_TRANSPARENT);
+        tuiDrawText(&gameFrame, (TuiText)
+            {
+              .position = labelPos, 
+              .text = "Status: Running smoothly", 
+              .maxLen = 24, 
+              .fgColor = 46, 
+              .bgColor = TERMINAL_COLOR_TRANSPARENT});
 
         // - - - Add mosue pos:
         TerminalPos mouse = terminalGetMousePos();
@@ -90,11 +111,44 @@ int main(void)
                  terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT) ? "DOWN" : "UP");
 
         FramePos mouseLabelPos = { .x = 8.0f, .y = 15.0f, .z = 9.0f };
-        tuiDrawText(&gameFrame, mouseLabelPos, mouseStr, sizeof(mouseStr), 220, TERMINAL_COLOR_TRANSPARENT);
+        tuiDrawText(&gameFrame, 
+            (TuiText)
+            { 
+            .position = mouseLabelPos, 
+            .text = mouseStr, 
+            .maxLen = sizeof(mouseStr), 
+            .fgColor = 220, 
+            .bgColor = TERMINAL_COLOR_TRANSPARENT});
 
         // - - - Add a dynamic progress bar
         FramePos barPos = { .x = 8.0f, .y = 12.0f, .z = 9.0f };
-        tuiDrawProgressBar(&gameFrame, barPos, 44, angle, 40, 238);
+        tuiDrawProgressBar(&gameFrame, (TuiProgressBar)
+            {
+            .position = barPos, 
+            .length = 44, 
+            .progress = angle, 
+            .fillColor = 40, 
+            .emptyColor = 238,
+            .textColor = 220,
+            .showPercentage = true,
+            .orientation = TUI_HORIZONTAL});
+
+        TuiButton btn = {
+          .fillColor   = 52,                             // Dark grey inner fill
+          .accentColor = 46,                              // Green border & text
+          .topLeft     = { .x = 10.0f, .y = 16.0f, .z = 5.0f },
+          .bottomRight = { .x = 35.0f, .y = 20.0f, .z = 5.0f },
+          .borderType  = DOUBLE,
+          .text        = "TOGGLE LIGHT",
+          .maxLen      = 12
+        };
+
+        if (tuiButton(&gameFrame, btn))
+        {
+          JUST_LOG_INFO("[APP] : Button Clicked!");
+          running = false;
+        }
+
 
         // Flush frame to terminal output
         frameRender(&gameFrame);

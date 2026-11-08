@@ -282,7 +282,7 @@ static inline void frameInternalSetCell(
   { target[i] = CHAR[i]; }
 
   FRAME->backFg[index] = FG_COLOR;
-  FRAME->backBg[index] = BG_COLOR;
+  if (BG_COLOR != TERMINAL_COLOR_TRANSPARENT)  FRAME->backBg[index] = BG_COLOR;
 }
 
 JUST_API void frameSetChar(
@@ -296,7 +296,7 @@ JUST_API void frameSetChar(
   JUST_ASSERT_DEBUG(FRAME->backChars != NULL);
 
   int x = (int) POSITION.x;
-  int y = (int) POSITION.y;
+  int y = (int) POSITION.y / 2.0f;
   int z = (int) POSITION.z;
 
   if (x < 0)              return;
@@ -396,7 +396,7 @@ JUST_API void frameSetPixel(
   // - - - Determine character and colors (preserve frame background for empty halves)
   const char*   targetChar  = " ";
   TerminalColor finalFg     = TERMINAL_COLOR_TRANSPARENT;
-  TerminalColor finalBg     = (currentBg != TERMINAL_COLOR_TRANSPARENT) ? currentBg : 0;
+  TerminalColor finalBg     = currentBg;
 
   if (hasTop && hasBot)
   {

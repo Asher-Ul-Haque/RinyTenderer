@@ -297,8 +297,6 @@ JUST_API TerminalPos terminalGetMousePos(void)
 {
   ENSURE_AFTER_INIT;
 
-  JUST_LOG_DEBUG("Mouse pos : x : %f, y : %f", ctx.mousePos.x, ctx.mousePos.y);
-
   return ctx.mousePos;
 }
 

@@ -5,32 +5,26 @@
 #include <stddef.h>
 #include <string.h>
 
-JUST_API void tuiDrawText(
-    TerminalFrame*  FRAME,
-    FramePos        POSITION,
-    const char*     TEXT,
-    size_t          TEXT_LENGTH,
-    TerminalColor   FG_COLOR,
-    TerminalColor   BG_COLOR)
+JUST_API void tuiDrawText(TerminalFrame* FRAME, TuiText TEXT_DESC)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
-  JUST_ASSERT_DEBUG(TEXT != NULL);
+  JUST_ASSERT_DEBUG(TEXT_DESC.text != NULL);
 
-  float curX = POSITION.x;
-  float curY = POSITION.y;
-  float curZ = POSITION.z;
+  float curX = TEXT_DESC.position.x;
+  float curY = TEXT_DESC.position.y;
+  float curZ = TEXT_DESC.position.z;
 
-  size_t length = strnlen(TEXT, TEXT_LENGTH);
+  size_t length = strnlen(TEXT_DESC.text, TEXT_DESC.maxLen);
   for (size_t i = 0; i < length; ++i)
   {
-    if (TEXT[i] == '\n')
+    if (TEXT_DESC.text[i] == '\n')
     {
-      curX = POSITION.x;
+      curX = TEXT_DESC.position.x;
       curY += 2.0f;
       continue;
     }
 
-    char cStr[2] = { TEXT[i], '\0' };
+    char cStr[2] = { TEXT_DESC.text[i], '\0' };
     frameSetChar(
         FRAME, 
         (FramePos) 
@@ -40,40 +34,43 @@ JUST_API void tuiDrawText(
           .z = curZ
         }, 
         cStr, 
-        FG_COLOR, 
-        BG_COLOR);
+        TEXT_DESC.fgColor, 
+        TEXT_DESC.bgColor);
     curX += 1.0f;
   }
 }
 
-JUST_API void tuiDrawTextCentered(
-    TerminalFrame*  FRAME,
-    FramePos        POSITION,
-    uint16_t        WIDTH,
-    const char*     TEXT,
-    size_t          TEXT_LENGTH,
-    TerminalColor   FG_COLOR,
-    TerminalColor   BG_COLOR)
+JUST_API void tuiDrawTextCentered(TerminalFrame* FRAME, TuiTextCentered TEXT_DESC)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
-  JUST_ASSERT_DEBUG(TEXT != NULL);
+  JUST_ASSERT_DEBUG(TEXT_DESC.text != NULL);
 
-  size_t length = strnlen(TEXT, TEXT_LENGTH);
+  size_t length = strnlen(TEXT_DESC.text, TEXT_DESC.maxLen);
   size_t index  = 0;
-  while (index < length && TEXT[index] != '\n') index++;
+  while (index < length && TEXT_DESC.text[index] != '\n') index++;
 
   float offsetX = 0.0f;
-  if (WIDTH > index)
+  if (TEXT_DESC.width > index)
   {
-    offsetX = (float)((WIDTH - index) / 2.0f);
+    offsetX = (float)((TEXT_DESC.width - index) / 2.0f);
   }
 
   FramePos centeredPos = 
   {
-    .x = POSITION.x + offsetX,
-    .y = POSITION.y,
-    .z = POSITION.z
+    .x = TEXT_DESC.position.x + offsetX,
+    .y = TEXT_DESC.position.y,
+    .z = TEXT_DESC.position.z
   };
-  tuiDrawText(FRAME, centeredPos, TEXT, index, FG_COLOR, BG_COLOR);
+  tuiDrawText(
+      FRAME, 
+      (TuiText)
+      {
+        .text     = TEXT_DESC.text,
+        .maxLen   = TEXT_DESC.maxLen,
+        .position = centeredPos,
+        .bgColor  = TEXT_DESC.bgColor,
+        .fgColor  = TEXT_DESC.fgColor
+      });
 }
+
 

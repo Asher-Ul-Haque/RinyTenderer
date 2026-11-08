@@ -1,63 +1,32 @@
 #pragma once
 
-#include <rinyTenderer/window.h>
-#include <rinyTenderer/_structs.h>
-#include <justLibrary.h>
+#include "justLibrary.h"
+#include "rinyTenderer/_structs.h"
+#include <rinyTenderer/tui/widgets.h>
 
 
 // - - - TUI Box & Panel Drawing - - -
 
-typedef enum tuiBoxType
-{
-  ROUNDED,
-  SHARP,
-  HEAVY,
-  DOUBLE,
-  ASCII
-} TuiBoxType;
-
-JUST_API void tuiDrawBox(
-    TerminalFrame*  FRAME, 
-    FramePos        TOP_LEFT,
-    FramePos        BOTTOM_RIGHT,
-    TerminalColor   COLOR,
-    TuiBoxType      BOX_TYPE);
-
-JUST_API void tuiFillRect(
-    TerminalFrame*  FRAME,
-    FramePos        TOP_LEFT,
-    FramePos        BOTTOM_RIGHT,
-    const char*     CHARACTER,
-    TerminalColor   FG_COLOR,
-    TerminalColor   BG_COLOR);
+JUST_API void tuiDrawBox(TerminalFrame* FRAME, TuiBox BOX_DESC);
 
 
 // - - - TUI Text & Label Rendering - - -
 
-JUST_API void tuiDrawText(
-    TerminalFrame*  FRAME,
-    FramePos        POSITION,
-    const char*     TEXT,
-    size_t          TEXT_LENGTH,
-    TerminalColor   FG_COLOR,
-    TerminalColor   BG_COLOR);
+JUST_API void tuiDrawText(TerminalFrame* FRAME, TuiText TEXT_DESC);
 
-JUST_API void tuiDrawTextCentered(
-    TerminalFrame*  FRAME,
-    FramePos        POSITION,
-    uint16_t        WIDTH,
-    const char*     TEXT,
-    size_t          TEXT_LENGTH,
-    TerminalColor   FG_COLOR,
-    TerminalColor   BG_COLOR);
+JUST_API void tuiDrawTextCentered(TerminalFrame* FRAME, TuiTextCentered TEXT_DESC);
 
 
 // - - - TUI Widgets & Meters - - -
 
-JUST_API void tuiDrawProgressBar(
-    TerminalFrame*  FRAME,
-    FramePos        POSITION,
-    uint16_t        WIDTH,
-    float           PROGRESS,
-    TerminalColor   FILL_COLOR,
-    TerminalColor   EMPTY_COLOR);
+JUST_API void tuiDrawProgressBar(TerminalFrame* FRAME, TuiProgressBar PROGRESS_DESC);
+
+JUST_API bool tuiButton(TerminalFrame* FRAME, const TuiButton BUTTON_DESC);
+
+
+
+JUST_API static inline bool tuiIsPointInBounds(FramePos POINT, FramePos TOP_LEFT, FramePos BOTTOM_RIGHT)
+{
+  return (POINT.x >= TOP_LEFT.x && POINT.x <= BOTTOM_RIGHT.x &&
+          POINT.y >= TOP_LEFT.y && POINT.y <= BOTTOM_RIGHT.y);
+}
