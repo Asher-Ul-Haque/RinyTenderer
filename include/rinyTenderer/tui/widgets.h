@@ -68,3 +68,12 @@ typedef struct tuiButton
   const char*   text;         ///< Button Label
   size_t        maxLen;       ///< How long to read the text
 } TuiButton;
+
+typedef struct tuiCheckbox
+{
+  FramePos       position;    ///< Top-left sub-pixel position
+  const char*    label;       ///< Text label rendered to the right
+  bool*          checked;     ///< Pointer to persistent boolean state
+  TerminalColor  boxColor;    ///< Color for the ballot box symbol
+  TerminalColor  textColor;   ///< Color for the label text
+} TuiCheckbox;

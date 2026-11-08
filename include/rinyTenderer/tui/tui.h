@@ -23,6 +23,8 @@ JUST_API void tuiDrawProgressBar(TerminalFrame* FRAME, TuiProgressBar PROGRESS_D
 
 JUST_API bool tuiButton(TerminalFrame* FRAME, const TuiButton BUTTON_DESC);
 
+JUST_API bool tuiCheckbox(TerminalFrame* FRAME, const TuiCheckbox CHECK_DESC);
+
 
 
 JUST_API static inline bool tuiIsPointInBounds(FramePos POINT, FramePos TOP_LEFT, FramePos BOTTOM_RIGHT)

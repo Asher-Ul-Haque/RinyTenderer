@@ -149,6 +149,21 @@ int main(void)
           running = false;
         }
 
+        static bool wireframeEnabled = false;
+
+        TuiCheckbox cb = {
+          .position  = { .x = 10.0f, .y = 22.0f, .z = 5.0f },
+          .label     = "Enable Wireframe Mode",
+          .checked   = &wireframeEnabled,
+          .boxColor  = 46,  // Green box
+          .textColor = 255  // White text
+        };
+
+        if (tuiCheckbox(&gameFrame, cb))
+        {
+          JUST_LOG_INFO("[APP] : Wireframe state changed to %s", wireframeEnabled ? "TRUE" : "FALSE");
+        }
+
 
         // Flush frame to terminal output
         frameRender(&gameFrame);
