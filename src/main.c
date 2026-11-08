@@ -47,7 +47,7 @@ int main(void)
     while (running)
     {
         terminalPollInput();
-        if (terminalIsKeyDown(KEY_QUIT))
+        if (terminalIsKeyDown(KEY_Q))
         {
             running = false;
         }
@@ -67,7 +67,7 @@ int main(void)
         // Draw the single mesh using unlit shading
         frameDrawMesh(&gameFrame, &triMesh, false, SHADING_UNLIT);
 
-        // - - - Add TUI - - - 
+        // - - - Add TUI - - -
         
         // - - - Add a box
         FramePos boxTopLeft  = { .x = 4.0f, .y = 2.0f, .z = 10.0f };
@@ -81,6 +81,16 @@ int main(void)
         // - - - Add a regular label
         FramePos labelPos = { .x = 8.0f, .y = 8.0f, .z = 9.0f };
         tuiDrawText(&gameFrame, labelPos, "Status: Running smoothly", 24, 46, TERMINAL_COLOR_TRANSPARENT);
+
+        // - - - Add mosue pos:
+        TerminalPos mouse = terminalGetMousePos();
+        char mouseStr[64];
+        snprintf(mouseStr, sizeof(mouseStr), "Mouse: X:%d Y:%d | Click: %s", 
+                 (int)mouse.x, (int)mouse.y, 
+                 terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT) ? "DOWN" : "UP");
+
+        FramePos mouseLabelPos = { .x = 8.0f, .y = 15.0f, .z = 9.0f };
+        tuiDrawText(&gameFrame, mouseLabelPos, mouseStr, sizeof(mouseStr), 220, TERMINAL_COLOR_TRANSPARENT);
 
         // - - - Add a dynamic progress bar
         FramePos barPos = { .x = 8.0f, .y = 12.0f, .z = 9.0f };

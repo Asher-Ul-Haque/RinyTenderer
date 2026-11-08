@@ -84,6 +84,18 @@ typedef enum keyCode
   KEY_CODE_COUNT
 } KeyCode;
 
+typedef enum mouseButton
+{
+  MOUSE_BUTTON_LEFT = 0,
+  MOUSE_BUTTON_MIDDLE,
+  MOUSE_BUTTON_RIGHT,
+  MOUSE_BUTTON_SCROLL_UP,
+  MOUSE_BUTTON_SCROLL_DOWN,
+  MOUSE_BUTTON_COUNT
+} MouseButton;
+
+
+#define MAX_FRAME_KEYS 32
 
 /// @brief : Terminal context global storage
 typedef struct terminalContext
@@ -92,8 +104,14 @@ typedef struct terminalContext
   TerminalSize    size;         ///< Size of the temrinal
   TerminalSize    cursorPos;    ///< Where is cursor
 
-  JustBitset      keys;         ///< Keys
-  JustQueue       text;         ///< Text in this frame                                
+  JustBitset      keys;                           ///< Keys
+  char            textBuffer[MAX_FRAME_KEYS + 1]; ///< Text
+  size_t          textLength;                     ///< strlen(textBuffer)   
+
+  TerminalPos     mousePos;         ///< Current mouse terminal position
+  JustBitset      mouseButtons;     ///< Active mouse buttons this frame 
+  int             scrollDelta;      ///< Scroll wheel delta this frame
+
 #ifdef DEBUG
   const char*     logFilePath;  ///< Log file path for just logger 
   FILE*           logFile;      ///< Log file for just logger
@@ -148,6 +166,18 @@ JUST_API const char*  terminalGetText(void);
  * @return : c string length
  */
 JUST_API size_t       terminalGetTextLength(void);
+
+/**
+ * @brief : Tells whether a mouse button was pressed
+ * @param BUTTON : WHich button?
+ * @return : true if pressed, false otherwise
+*/
+JUST_API bool terminalIsMouseButtonDown(MouseButton BUTTON);
+
+JUST_API TerminalPos  terminalGetMousePos(void);
+
+JUST_API int terminalGetScrollDelta(void);
+
 
 
 // - - - Initialization - - -
