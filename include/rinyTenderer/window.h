@@ -5,18 +5,23 @@
 
 #pragma once
 
-#include "cglm/types-struct.h"
-#include "cglm/types.h"
+#include <cglm/types-struct.h>
 #include <justLibrary.h>
-#include <stdint.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
 
+/// @brief : terminal pos is a 2d vector 
 typedef vec2s TerminalPos;
-typedef vec2s TerminalPosRel;
+
+/// @brief : terminal size is a 2d vector
 typedef vec2s TerminalSize;
+
+/// @brief : terminal pos is a 2d vector 
+typedef vec2s TerminalPosRel;
+
+/// @brief : terminal size is a 2d vector
 typedef vec2s TerminalSizeRel;
 
 /// @brief : Enum for keys
@@ -84,6 +89,7 @@ typedef enum keyCode
   KEY_CODE_COUNT
 } KeyCode;
 
+/// @brief : Enum for Mouse buttons 
 typedef enum mouseButton
 {
   MOUSE_BUTTON_LEFT = 0,
@@ -94,8 +100,8 @@ typedef enum mouseButton
   MOUSE_BUTTON_COUNT
 } MouseButton;
 
-
-#define MAX_FRAME_KEYS 32
+/// @brief : In a frame we are tracking at max 32 chars 
+#define MAX_FRAME_CHARS 32
 
 /// @brief : Terminal context global storage
 typedef struct terminalContext
@@ -104,9 +110,9 @@ typedef struct terminalContext
   TerminalSize    size;         ///< Size of the temrinal
   TerminalSize    cursorPos;    ///< Where is cursor
 
-  JustBitset      keys;                           ///< Keys
-  char            textBuffer[MAX_FRAME_KEYS + 1]; ///< Text
-  size_t          textLength;                     ///< strlen(textBuffer)   
+  JustBitset      keys;                            ///< Keys
+  char            textBuffer[MAX_FRAME_CHARS + 1]; ///< Text
+  size_t          textLength;                      ///< strlen(textBuffer)   
 
   TerminalPos     mousePos;         ///< Current mouse terminal position
   JustBitset      mouseButtons;     ///< Active mouse buttons this frame 
@@ -121,8 +127,8 @@ typedef struct terminalContext
 
 // - - - Size - - -
 
-/// @brief : Updates the terminal size
-JUST_API void         terminalUpdateSize(void);
+/// @brief : Updates the terminal size, call whenever window is resized
+JUST_API void terminalUpdateSize(void);
 
 /**
  * @brief  : Return the terminal size as struct
@@ -134,38 +140,38 @@ JUST_API TerminalSize terminalGetSize(void);
  * @brief : Return width 
  * @return : width as unsigned short
  */
-JUST_API uint16_t     terminalGetWidth  (void);
+JUST_API uint16_t terminalGetWidth(void);
 
 /**
  * @brief : Return height
  * @return : Height as unsigned short
  */
-JUST_API uint16_t     terminalGetHeight (void);
+JUST_API uint16_t terminalGetHeight(void);
 
 
 // - - - Input - - -
 
-/// @brief : Checks key presses
-JUST_API void         terminalPollInput(void);
+/// @brief : Checks key presses and mouse button clicks
+JUST_API void terminalPollInput(void);
 
 /**
  * @brief : Tells whether a given key is pressed or not
  * @param KEY : The key to check
  * @return : true if pressed, false otherwise
  */
-JUST_API bool         terminalIsKeyDown(KeyCode KEY);
+JUST_API bool terminalIsKeyDown(KeyCode KEY);
 
 /**
  * @brief : Returns the character sequence typed in this frame
  * @return : c string
  */
-JUST_API const char*  terminalGetText(void);
+JUST_API const char* terminalGetText(void);
 
 /**
  * @brief : Returns how many chars were typed
  * @return : c string length
  */
-JUST_API size_t       terminalGetTextLength(void);
+JUST_API size_t terminalGetTextLength(void);
 
 /**
  * @brief : Tells whether a mouse button was pressed
@@ -174,19 +180,26 @@ JUST_API size_t       terminalGetTextLength(void);
 */
 JUST_API bool terminalIsMouseButtonDown(MouseButton BUTTON);
 
-JUST_API TerminalPos  terminalGetMousePos(void);
+/**
+ * @brief : Tells where the mouse position is
+ * @warning : Updates only when mouse is clicked
+*/
+JUST_API TerminalPos terminalGetMousePos(void);
 
+/**
+ * @brief : Tells whether the scroll wheel is up, down or not moved
+ * @return : 1 for up, -1 for down, 0 for same
+*/
 JUST_API int terminalGetScrollDelta(void);
-
 
 
 // - - - Initialization - - -
 
 /// @brief : Initializes the terminal
-JUST_API void         terminalInit(void);
+JUST_API void terminalInit(void);
 
 /// @brief : Shuts the terminal renderer down
-JUST_API void         terminalShutdown(void);
+JUST_API void terminalShutdown(void);
 
 
 // - - - Cursor - - -
@@ -199,9 +212,10 @@ JUST_API static inline void terminalHideCursor(void)
 JUST_API static inline void terminalShowCursor(void)
 { fputs("\033[?25h", stdout); }
 
-/** @brief : Set cursor position
- * @param POSITION : The position of the terminal
- */
+/** 
+ * @brief : Set cursor position
+ * @param POSITION : The position of the terminal cursor
+*/
 JUST_API void terminalSetCursor(TerminalSize POSITION);
 
 /// @brief : Clear the terminal

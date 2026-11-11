@@ -135,7 +135,7 @@ JUST_API void terminalPollInput(void)
 
   justBitsetClearAll(&ctx.keys);
   justBitsetClearAll(&ctx.mouseButtons);
-  ctx.textLength = 0;
+  ctx.textLength  = 0;
   ctx.scrollDelta = 0;
   memset(ctx.textBuffer, 0, sizeof(ctx.textBuffer));
 
@@ -152,13 +152,14 @@ JUST_API void terminalPollInput(void)
       if (next == '[')
       {
         char modeChar;
-        if (read(STDIN_FILENO, &modeChar, 1) == 1 && modeChar == '<')
+        if (read(STDIN_FILENO, &modeChar, 1) != 1) continue;
+
+        if (modeChar == '<')
         {
           // - - - Read SGR parameters: Cb;Cx;Cy[M|m]
           int cb = 0, cx = 0, cy = 0;
           char termType = '\0';
 
-          // - - - Scan for Cb;Cx;CyM
           char buf[32];
           int  idx = 0;
           while (idx < (int)sizeof(buf) - 1)
@@ -178,19 +179,17 @@ JUST_API void terminalPollInput(void)
           {
             ctx.mousePos = (TerminalPos){.x = cx, .y = cy};
 
-            bool        isPress = (termType == 'M');
-            MouseButton btn     = MOUSE_BUTTON_COUNT;
+            bool       isPress = (termType == 'M');
+            MouseButton btn      = MOUSE_BUTTON_COUNT;
 
-            // - - - Decode Cb button flags
             if ((cb & 0x40) != 0)
             {
-              // - - - scroll wheel events
               if ((cb & 1) == 0) 
               { 
                 ctx.scrollDelta = 1; 
                 justBitsetSet(&ctx.mouseButtons, MOUSE_BUTTON_SCROLL_UP); 
               }
-              else
+              else 
               { 
                 ctx.scrollDelta = -1; 
                 justBitsetSet(&ctx.mouseButtons, MOUSE_BUTTON_SCROLL_DOWN);
@@ -212,28 +211,40 @@ JUST_API void terminalPollInput(void)
           continue;
         }
 
-        // - - - Handle arrow keys / navigation escape sequences
-        char seq[2];
-        seq[0] = modeChar;
-
-        if (read(STDIN_FILENO, &seq[1], 1) == 1)
+        // - - - Arrow Key Parsing
+        KeyCode code = KEY_UNKNOWN;
+        switch (modeChar)
+        {
+          case 'A': code = KEY_UP;    break;
+          case 'B': code = KEY_DOWN;  break;
+          case 'C': code = KEY_RIGHT; break;
+          case 'D': code = KEY_LEFT;  break;
+          default :                   break;
+        }
+        if (code != KEY_UNKNOWN) justBitsetSet(&ctx.keys, code);
+      }
+      else if (next == 'O')
+      {
+        // - - - Handle SS3 application mode arrow keys (ESC O A/B/C/D)
+        char modeChar;
+        if (read(STDIN_FILENO, &modeChar, 1) == 1)
         {
           KeyCode code = KEY_UNKNOWN;
-          if (seq[0] == '[')
+          switch (modeChar)
           {
-            switch (seq[1])
-            {
-              case 'A': code = KEY_UP;    break;
-              case 'B': code = KEY_DOWN;  break;
-              case 'C': code = KEY_RIGHT; break;
-              case 'D': code = KEY_LEFT;  break;
-              default :                   break;
-            }
+            case 'A': code = KEY_UP;    break;
+            case 'B': code = KEY_DOWN;  break;
+            case 'C': code = KEY_RIGHT; break;
+            case 'D': code = KEY_LEFT;  break;
+            default :                   break;
           }
           if (code != KEY_UNKNOWN) justBitsetSet(&ctx.keys, code);
         }
       }
-      else justBitsetSet(&ctx.keys, KEY_ESCAPE);
+      else 
+      {
+        justBitsetSet(&ctx.keys, KEY_ESCAPE);
+      }
       continue;
     }
 
@@ -241,7 +252,7 @@ JUST_API void terminalPollInput(void)
     KeyCode code = KEY_UNKNOWN;
     if      (c == '\n'  || c == '\r') { code = KEY_ENTER; }
     else if (c == 127   || c == '\b') { code = KEY_BACKSPACE; }
-    else if (c == ' ')                { code = KEY_SPACE; }
+    else if (c == ' ')              { code = KEY_SPACE; }
     else if (c >= 'a' && c <= 'z')    { code = KEY_A + (c - 'a'); }
     else if (c >= 'A' && c <= 'Z')    { code = KEY_A + (c - 'A'); }
     else if (c >= '0' && c <= '9')    { code = KEY_A + (c - '0'); }
@@ -252,7 +263,7 @@ JUST_API void terminalPollInput(void)
       justBitsetSet(&ctx.keys, code);
     }
 
-    // - - - 3. Accumulate printable chars & backspace / enter into the text buffer
+    // - - - 3. Accumulate printable chars into text buffer
     int asciiPrintableStart = 32;
     int asciiPrintableEnd   = 126;
     if (

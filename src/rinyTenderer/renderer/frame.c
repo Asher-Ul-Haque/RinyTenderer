@@ -35,6 +35,7 @@ static inline TerminalPos resolveActualPos(TerminalPosRel REL_POS)
     };
 }
 
+
 // - - - Create and Destroy - - - 
 
 JUST_API void frameCreateAbsolute(TerminalFrame* FRAME, TerminalPos POSITION, TerminalSize SIZE)

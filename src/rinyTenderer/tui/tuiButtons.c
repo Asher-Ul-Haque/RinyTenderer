@@ -18,20 +18,14 @@ JUST_API bool tuiButton(TerminalFrame* FRAME, const TuiButton BUTTON_DESC)
   if (terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT) || terminalIsKeyDown(KEY_ENTER))
   {
     TerminalPos mousePos      = terminalGetMousePos();
-    FramePos    mouseFramePos = 
-      { 
-        .x = mousePos.x, 
-        .y = mousePos.y * 2.0f - 2.0f, 
-        .z = 0.0f 
-      };
-    
+    FramePos    mouseFramePos = tuiMapMouseToFrame(FRAME, mousePos);
+
     if (tuiIsPointInBounds(mouseFramePos, BUTTON_DESC.topLeft, BUTTON_DESC.bottomRight))
     {
       clicked = true;
     }
   }
 
-  // - - - Fill inner background area
 // - - - Fill inner background area (Cell-based row/col iteration)
   uint16_t startCellX = (uint16_t)BUTTON_DESC.topLeft.x + 1;
   uint16_t endCellX   = (uint16_t)BUTTON_DESC.bottomRight.x;
@@ -96,5 +90,3 @@ JUST_API bool tuiButton(TerminalFrame* FRAME, const TuiButton BUTTON_DESC)
 
   return clicked;
 }
-
-

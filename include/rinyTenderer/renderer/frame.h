@@ -10,17 +10,9 @@
 #include <rinyTenderer/_structs.h>
 #include <stdint.h>
 
-/// @brief : Pass this for the frame to occupy all the window
-#define FULLSCREEN_FRAME_SIZE (TerminalPos) { .x = 0, .y = 0 }
 
-/// @brief : Pass this for the frame to be at the top left of the window 
-#define TOP_LEFT_FRAME_POS (TerminalPos) { .x = 0, .y = 0 } 
+// - - - Life cycle - - -
 
-#define CELL_SIZE_CHARS 4
-
-// - - - | API | - - -
-
-// - - - Life cycle
 /**
  * @brief : Initializes the frame buffer and allocates memory
  * @param FRAME : Which frame to initialize
@@ -53,7 +45,8 @@ JUST_API void frameDestroy(TerminalFrame* FRAME);
 JUST_API void frameResize(TerminalFrame* FRAME);
 
 
-// - - - Draw and clear
+// - - - Draw and clear - - -
+
 /**
  * @brief : Renders a frame
  * @param FRAME : Which frame to render
@@ -68,7 +61,8 @@ JUST_API void frameRender(TerminalFrame* FRAME);
 JUST_API void frameClear(TerminalFrame* FRAME, TerminalColor PIXEL_TEMPLATE);
 
 
-// - - - Basic geometry and text
+// - - - Basic geometry and text - - -
+
 /**
  * @brief : Sets a specific pixel/mesh fragment in the frame with depth testing
  * @param FRAME : Which frame

@@ -38,7 +38,7 @@ JUST_API bool tuiCheckbox(TerminalFrame* FRAME, const TuiCheckbox DESC)
   }
 
   // - - - 2. Draw Ballot Box character
-  const char* boxChar = *(DESC.checked) ? "☑" : "☐";
+  const char* boxChar = *(DESC.checked) ? "☒" : "☐";
   frameSetChar(FRAME, topLeft, boxChar, DESC.boxColor, TERMINAL_COLOR_TRANSPARENT);
 
   // - - - 3. Draw Label Text next to the box

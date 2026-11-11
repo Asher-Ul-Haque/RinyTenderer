@@ -1,26 +1,38 @@
-#pragma once
-
 /**
  * @file : structs.h
  * @brief : Stores common structs
 */
-
-#include <stdint.h>
-#define RINY_TENDERER_TAG           "RINY_TENDERER"
-#define TERMINAL_COLOR_TRANSPARENT  0xFF
-
+#pragma once
+#include <rinyTenderer/window.h>
 #include <cglm/types-struct.h>
 #include <justLibrary.h>
-#include <rinyTenderer/window.h>
+
+/// @brief : The riny tenderer malloc tag
+#define RINY_TENDERER_TAG "RINY_TENDERER"
+
+/// @brief : Transparent color
+#define TERMINAL_COLOR_TRANSPARENT 0xFF
+
+/// @brief : A frame can store at max 5 lights
+#define MAX_FRAME_LIGHTS 5
+
+/// @brief : Pass this for the frame to occupy all the window
+#define FULLSCREEN_FRAME_SIZE (TerminalPos) { .x = 0, .y = 0 }
+
+/// @brief : Pass this for the frame to be at the top left of the window 
+#define TOP_LEFT_FRAME_POS (TerminalPos) { .x = 0, .y = 0 } 
+
+/// @brief : A cell stores at max 4 chars (helps with unicode) 
+#define CELL_SIZE_CHARS 4
 
 /// @brief : A frame position is just 3 float vector
-typedef vec3s     FramePos;
+typedef vec3s FramePos;
 
 /// @brief : A direction is just 3 float vector
-typedef vec3s     FrameDir;
+typedef vec3s FrameDir;
 
 /// @brief : A rotation is just 3 float vector
-typedef vec3s     FrameRotation;
+typedef vec3s FrameRotation;
 
 /// @brief : Just an index
 typedef uint8_t TerminalLightIndex;
@@ -107,39 +119,32 @@ typedef struct terminalCamera3D
   float aspectRatio;  ///< Aspect ratio
 } TerminalCamera;
 
-#define MAX_FRAME_LIGHTS 5
-
-#define CELL_SIZE_CHARs 4
 
 /// @brief : Say a frame in a window, a window can have multiple frames
 typedef struct terminalFrame
 {
-  TerminalPos     position;           ///< Where in the terminal
-  TerminalSize    size;               ///< How big is the terminal, use this for operations
-
-  float           widthRatio;         ///< Stored width multiplier for dynamic resizing
-  TerminalPosRel  relPos;             ///< Stored relative position for dynamic repositioning
+  // - - - Position and size
+  TerminalPos     position;     ///< Where in the terminal
+  TerminalSize    size;         ///< How big is the terminal, use this for operations
+  float           widthRatio;   ///< Stored width multiplier for dynamic resizing
+  TerminalPosRel  relPos;       ///< Stored relative position for dynamic repositioning
 
   // - - - Draw buffers
-  char* backChars; ///< Back buffer characters (width * height * CELL_SIZE_CHARs)
-  char* frontChars; ///< Front buffer chars for change detection
+  char*           backChars;    ///< Back buffer characters (width * height * CELL_SIZE_CHARs)
+  char*           frontChars;   ///< Front buffer chars for change detection
+  TerminalColor*  backFg;       ///< Back buffer foreground colors
+  TerminalColor*  frontFg;      ///< Front buffer foreground colors
+  TerminalColor*  backBg;       ///< Back buffer foreground colors
+  TerminalColor*  frontBg;      ///< Front buffer background colors
+  uint16_t*       depthBuffer;  ///< Per-pixel depth values for depth testing
 
-  TerminalColor* backFg; ///< Back buffer foreground colors
-  TerminalColor* frontFg; ///< Front buffer foreground colors
-  
-  TerminalColor* backBg; ///< Back buffer foreground colors
-  TerminalColor* frontBg; ///< Front buffer background colors
+  TerminalCamera  camera; ///< The camera                                         
 
-  uint16_t* depthBuffer;  ///< Per-pixel depth values for depth testing
-
-  TerminalCamera  camera;             ///< The camera                                         
-
-  RGBcolor        ambientColor;                       ///< Global ambient color
-  float           ambientIntensity;                   ///< Global ambient intensity multiplier
-
+  /// - - - Lights
+  RGBcolor        ambientColor;                           ///< Global ambient color
+  float           ambientIntensity;                       ///< Global ambient intensity multiplier
   TerminalLight   directionalLights[MAX_FRAME_LIGHTS];    ///< Fixed array of light sources
-  uint8_t         directionalLightCount;                  ///< How many lights
-
   TerminalLight   pointLights[MAX_FRAME_LIGHTS];          ///< Fixed array of light sources                                                                 
+  uint8_t         directionalLightCount;                  ///< How many lights
   uint8_t         pointLightCount;                        ///< How many point lights                                                                        
 } TerminalFrame;

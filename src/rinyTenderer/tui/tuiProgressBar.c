@@ -88,3 +88,100 @@ JUST_API void tuiDrawProgressBar(TerminalFrame* FRAME, TuiProgressBar PROG_BAR_D
     }
   }
 }
+
+JUST_API void tuiSlider(TerminalFrame* FRAME, const TuiSlider DESC)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG(DESC.value != NULL);
+  JUST_ASSERT_DEBUG(DESC.minValue < DESC.maxValue);
+  JUST_ASSERT_DEBUG(DESC.length > 0);
+
+  // - - - 1. Compute dynamic bounding box
+  FramePos topLeft = DESC.position;
+  FramePos bottomRight = {
+    .x = (DESC.orientation == TUI_HORIZONTAL) ? topLeft.x + (float)DESC.length : topLeft.x + 4.0f,
+    .y = (DESC.orientation == TUI_HORIZONTAL) ? topLeft.y + 2.0f : topLeft.y + (float)(DESC.length * 2),
+    .z = topLeft.z
+  };
+
+  float trackLength = (float)DESC.length;
+
+  // - - - 2. Mouse Hit-Testing & Focus Tracking
+  static const float* focusedSlider = NULL;
+
+  if (terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT))
+  {
+    TerminalPos mousePos = terminalGetMousePos();
+    FramePos mouseFramePos = {
+      .x = (float)mousePos.x,
+      .y = (float)mousePos.y * 2.0f - 2.0f,
+      .z = 0.0f
+    };
+
+    if (tuiIsPointInBounds(mouseFramePos, topLeft, bottomRight))
+    {
+      focusedSlider = DESC.value;
+      float relPos = (DESC.orientation == TUI_HORIZONTAL) ? (mouseFramePos.x - topLeft.x) : (mouseFramePos.y - topLeft.y);
+      if (relPos < 0.0f) relPos = 0.0f;
+      if (relPos > trackLength) relPos = trackLength;
+
+      float ratio = (trackLength > 0.0f) ? (relPos / trackLength) : 0.0f;
+      *(DESC.value) = DESC.minValue + ratio * (DESC.maxValue - DESC.minValue);
+    }
+  }
+
+  // - - - 3. Arrow Key Navigation when Focused
+  if (focusedSlider == DESC.value)
+  {
+    float step = (DESC.maxValue - DESC.minValue) * 0.05f;
+    if (terminalIsKeyDown(KEY_LEFT) || terminalIsKeyDown(KEY_DOWN))
+    {
+      *(DESC.value) -= step;
+    }
+    if (terminalIsKeyDown(KEY_RIGHT) || terminalIsKeyDown(KEY_UP))
+    {
+      *(DESC.value) += step;
+    }
+  }
+
+  // - - - 4. Clamp Value Bounds
+  if (*(DESC.value) < DESC.minValue) *(DESC.value) = DESC.minValue;
+  if (*(DESC.value) > DESC.maxValue) *(DESC.value) = DESC.maxValue;
+
+  // - - - 5. Render Progress Bar
+  float currentRatio = (*(DESC.value) - DESC.minValue) / (DESC.maxValue - DESC.minValue);
+
+  tuiDrawProgressBar(FRAME, (TuiProgressBar)
+  {
+    .fillColor      = DESC.fillColor,
+    .emptyColor     = DESC.emptyColor,
+    .textColor      = DESC.accentColor,
+    .position       = topLeft,
+    .orientation    = DESC.orientation,
+    .length         = DESC.length,
+    .progress       = currentRatio,
+    .showPercentage = false
+  });
+
+  // - - - 6. Draw Label and Value if Enabled
+  if (DESC.showValue && DESC.label != NULL && DESC.maxLen > 0)
+  {
+    char displayStr[64];
+    int written = snprintf(displayStr, sizeof(displayStr), "%.*s: %.1f", (int)DESC.maxLen, DESC.label, *(DESC.value));
+    size_t strLen = (written > 0) ? (size_t)written : 0;
+
+    float centerX = topLeft.x + (trackLength / 2.0f) - ((float)strLen / 2.0f);
+    float centerY = topLeft.y + 1.0f;
+
+    for (size_t i = 0; i < strLen; ++i)
+    {
+      char symbol[2] = { displayStr[i], '\0' };
+      FramePos charPos = {
+        .x = centerX + (float)i,
+        .y = centerY,
+        .z = topLeft.z - 2.0f
+      };
+      frameSetChar(FRAME, charPos, symbol, DESC.accentColor, TERMINAL_COLOR_TRANSPARENT);
+    }
+  }
+}

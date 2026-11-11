@@ -77,3 +77,19 @@ typedef struct tuiCheckbox
   TerminalColor  boxColor;    ///< Color for the ballot box symbol
   TerminalColor  textColor;   ///< Color for the label text
 } TuiCheckbox;
+
+typedef struct tuiSlider
+{
+  FramePos       position;     ///< Top-left sub-pixel position
+  uint16_t       length;       ///< Length of the slider track
+  TuiOrientation orientation;  ///< Horizontal or Vertical
+  const char*    label;        ///< Variable name / label
+  size_t         maxLen;       ///< Maximum length for the label
+  float*         value;        ///< Pointer to live float variable
+  float          minValue;     ///< Minimum bound
+  float          maxValue;     ///< Maximum bound
+  TerminalColor  fillColor;    ///< Active bar color
+  TerminalColor  emptyColor;   ///< Unfilled track color
+  TerminalColor  accentColor;  ///< Border and text color
+  bool           showValue;    ///< Whether to display the value and label
+} TuiSlider;
