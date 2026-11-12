@@ -3,22 +3,26 @@
 #include <justLibrary.h>
 #include <stdint.h>
 
+
+/// @brief : What type of border
 typedef enum tuiBoxType
 {
-  ROUNDED,    ///< Rounded borders 
-  SHARP,      ///< Sharp borders
-  HEAVY,      ///< Bold borders
-  DOUBLE,     ///< Double border
-  ASCII,      ///< ASCII only
-  NONE        ///< Do not draw              
+  TUI_BORDER_ROUNDED,    ///< Rounded borders 
+  TUI_BORDER_SHARP,      ///< Sharp borders
+  TUI_BORDER_HEAVY,      ///< Bold borders
+  TUI_BORDER_DOUBLE,     ///< Double border
+  TUI_BORDER_ASCII,      ///< ASCII only
+  TUI_BORDER_NONE        ///< Do not draw              
 } TuiBoxType;
 
+/// @brief : The orientation of the text
 typedef enum tuiOrientation
 {
   TUI_HORIZONTAL = 0,
   TUI_VERTICAL
 } TuiOrientation;
 
+/// @brief : Representation of all the info needed for a tui box
 typedef struct tuiBox
 {
   FramePos        topLeft;      ///< The top left corner of the box
@@ -27,15 +31,18 @@ typedef struct tuiBox
   TuiBoxType      boxType;      ///< The border type of the box
 } TuiBox;
 
+/// @brief ; Representation of all the info needed for a tui text
 typedef struct tuiText
 {
   FramePos      position; ///< Top left of the text 
   const char*   text;     ///< The text as c str
   size_t        maxLen;   ///< Max length to read
+  uint16_t      width;    ///< Maximum line width before auto-wrapping (0 = no wrap)
   TerminalColor fgColor;  ///< Foreground color
   TerminalColor bgColor;  ///< Background color
 } TuiText;
 
+/// @brief : Representation of all the info needed for a tui text centered 
 typedef struct tuiTextCentered
 {
   FramePos      position; ///< Top left of the text 
@@ -46,6 +53,7 @@ typedef struct tuiTextCentered
   TerminalColor bgColor;  ///< Background color
 } TuiTextCentered;
 
+/// @brief : Representation of all the info needed for a tui progress bar
 typedef struct tuiProgressBar
 {
   TerminalColor   fillColor;      ///< Which color to fill progres
@@ -58,6 +66,7 @@ typedef struct tuiProgressBar
   bool            showPercentage; ///< Whether to write the percentage
 } TuiProgressBar;
 
+/// @brief : Representation of all the info needed for a tui button
 typedef struct tuiButton
 {
   TerminalColor fillColor;    ///< Fill color
@@ -69,6 +78,7 @@ typedef struct tuiButton
   size_t        maxLen;       ///< How long to read the text
 } TuiButton;
 
+/// @brief : Representation of all the info needed for a tui checkbox
 typedef struct tuiCheckbox
 {
   FramePos       position;    ///< Top-left sub-pixel position
@@ -78,6 +88,7 @@ typedef struct tuiCheckbox
   TerminalColor  textColor;   ///< Color for the label text
 } TuiCheckbox;
 
+/// @brief : Representation of all the info needed for a tui slider
 typedef struct tuiSlider
 {
   FramePos       position;     ///< Top-left sub-pixel position

@@ -1,58 +1,64 @@
 #include <rinyTenderer/renderer/frame.h>
 #include <rinyTenderer/tui/tui.h>
 
+#include <rinyTenderer/renderer/frame.h>
+#include <rinyTenderer/tui/tui.h>
+#include <string.h>
+
+#include <rinyTenderer/renderer/frame.h>
+#include <rinyTenderer/tui/tui.h>
+#include <string.h>
+
 JUST_API bool tuiCheckbox(TerminalFrame* FRAME, const TuiCheckbox DESC)
 {
   JUST_ASSERT_DEBUG(FRAME != NULL);
   JUST_ASSERT_DEBUG(DESC.label != NULL);
   JUST_ASSERT_DEBUG(DESC.checked != NULL);
 
-  size_t  labelLen    = strlen(DESC.label);
-  float   totalWidth  = 2.0f + (float)labelLen;
+  size_t labelLen = strlen(DESC.label);
 
-  FramePos topLeft = DESC.position;
-  FramePos bottomRight = 
+  // - - - Align topLeft.y with frameSetChar's internal cell row calculation
+  int cellY = (int)DESC.position.y / 2;
+  FramePos topLeft = 
     {
-      .x = topLeft.x + totalWidth,
-      .y = topLeft.y + 2.0f,
-      .z = topLeft.z
+      .x = DESC.position.x,
+      .y = (float)(cellY * 2),
+      .z = DESC.position.z
     };
 
-  // - - - 1. Hit-Test mouse click or Enter key
+  // - - - Hit-Test mouse click or Enter key against the exact ballot box cell
   bool toggled = false;
   if (terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT) || terminalIsKeyDown(KEY_ENTER))
   {
     TerminalPos mousePos      = terminalGetMousePos();
-    FramePos    mouseFramePos = 
-      {
-        .x = (float)mousePos.x,
-        .y = (float)mousePos.y * 2.0f - 2.0f,
-        .z = 0.0f
-      };
+    FramePos    mouseFramePos = tuiMapMouseToFrame(FRAME, mousePos);
 
-    if (tuiIsPointInBounds(mouseFramePos, topLeft, bottomRight))
+    if (topLeft.x == mouseFramePos.x && topLeft.y == mouseFramePos.y)
     {
       *(DESC.checked) = !(*(DESC.checked));
       toggled         = true;
     }
   }
 
-  // - - - 2. Draw Ballot Box character
+  // - - - Draw Ballot Box character
   const char* boxChar = *(DESC.checked) ? "☒" : "☐";
   frameSetChar(FRAME, topLeft, boxChar, DESC.boxColor, TERMINAL_COLOR_TRANSPARENT);
 
-  // - - - 3. Draw Label Text next to the box
-  for (size_t i = 0; i < labelLen; ++i)
+  // - - - Draw Label Text next to the box using tuiDrawText
+  tuiDrawText(FRAME, (TuiText)
   {
-    char symbol[2]    = { DESC.label[i], '\0' };
-    FramePos charPos  = 
+    .position = 
       {
-        .x = topLeft.x + 2.0f + (float)i,
+        .x = topLeft.x + 2.0f,
         .y = topLeft.y,
         .z = topLeft.z
-      };
-    frameSetChar(FRAME, charPos, symbol, DESC.textColor, TERMINAL_COLOR_TRANSPARENT);
-  }
+      },
+    .text     = DESC.label,
+    .maxLen   = labelLen,
+    .width    = (uint16_t)labelLen,
+    .fgColor  = DESC.textColor,
+    .bgColor  = TERMINAL_COLOR_TRANSPARENT
+  });
 
   return toggled;
 }

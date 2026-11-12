@@ -1,7 +1,7 @@
 #pragma once
 
-#include "justLibrary.h"
-#include "rinyTenderer/_structs.h"
+#include <justLibrary.h>
+#include <rinyTenderer/_structs.h>
 #include <rinyTenderer/tui/widgets.h>
 
 
@@ -35,9 +35,9 @@ JUST_API static inline bool tuiIsPointInBounds(FramePos POINT, FramePos TOP_LEFT
 
 JUST_API static inline FramePos tuiMapMouseToFrame(const TerminalFrame* FRAME, TerminalPos mousePos)
 {
-  // - - - Convert 1-indexed terminal screen cells to 0-indexed frame-relative sub-pixels
-  float relX = (float)mousePos.x - 1.0f - FRAME->position.x;
-  float relY = ((float)mousePos.y - 1.0f - FRAME->position.y) * 2.0f;
+  // - - - Mouse coordinates are 1-indexed terminal cells. Frame coordinates are 0-indexed horizontally and use two sub-pixels per terminal cell vertically.
+  float relX = (mousePos.x - FRAME->position.x - 1.0f);
+  float relY = (mousePos.y - FRAME->position.y - 1.0f) * 2.0f;
 
   return (FramePos)
   {

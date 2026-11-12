@@ -22,9 +22,9 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
 
   switch(BOX_DESC.boxType)
   {
-    case NONE: return;
+    case TUI_BORDER_NONE: return;
 
-    case ROUNDED:
+    case TUI_BORDER_ROUNDED:
       tl = "╭";
       bl = "╰";
       tr = "╮";
@@ -33,7 +33,7 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
       v  = "│";
       break;
 
-    case SHARP  :
+    case TUI_BORDER_SHARP  :
       tl = "┌";
       bl = "└";
       tr = "┐";
@@ -42,7 +42,7 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
       v  = "│";
       break;
 
-    case HEAVY  :
+    case TUI_BORDER_HEAVY  :
       tl = "┏";
       bl = "┗";
       tr = "┓";
@@ -51,7 +51,7 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
       v  = "┃";
       break;
 
-    case DOUBLE :
+    case TUI_BORDER_DOUBLE :
       tl = "╔";
       bl = "╚";
       tr = "╗";
@@ -60,7 +60,7 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
       v  = "║";
       break;
 
-    case ASCII  :
+    case TUI_BORDER_ASCII  :
       tl = "+";
       bl = "+";
       tr = "+";
@@ -74,27 +74,27 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
   frameSetChar(FRAME, BOX_DESC.topLeft, tl, BOX_DESC.color, TERMINAL_COLOR_TRANSPARENT);
   frameSetChar(FRAME, BOX_DESC.bottomRight, br, BOX_DESC.color, TERMINAL_COLOR_TRANSPARENT);
   frameSetChar(
-      FRAME, 
-      (FramePos)
-      {
-        .x = BOX_DESC.topLeft.x, 
-        .y = BOX_DESC.bottomRight.y, 
-        .z = (BOX_DESC.topLeft.z + BOX_DESC.bottomRight.z) / 2
-      }, 
-      bl, 
-      BOX_DESC.color, 
-      TERMINAL_COLOR_TRANSPARENT);
+    FRAME, 
+    (FramePos)
+    {
+      .x = BOX_DESC.topLeft.x, 
+      .y = BOX_DESC.bottomRight.y, 
+      .z = (BOX_DESC.topLeft.z + BOX_DESC.bottomRight.z) / 2
+    }, 
+    bl, 
+    BOX_DESC.color, 
+    TERMINAL_COLOR_TRANSPARENT);
   frameSetChar(
-      FRAME, 
-      (FramePos)
-      {
-        .x = BOX_DESC.bottomRight.x, 
-        .y = BOX_DESC.topLeft.y, 
-        .z = (BOX_DESC.topLeft.z + BOX_DESC.bottomRight.z) / 2
-      }, 
-      tr, 
-      BOX_DESC.color, 
-      TERMINAL_COLOR_TRANSPARENT);
+    FRAME, 
+    (FramePos)
+    {
+      .x = BOX_DESC.bottomRight.x, 
+      .y = BOX_DESC.topLeft.y, 
+      .z = (BOX_DESC.topLeft.z + BOX_DESC.bottomRight.z) / 2
+    }, 
+    tr, 
+    BOX_DESC.color, 
+    TERMINAL_COLOR_TRANSPARENT);
 
   // - - - Horizontal Edges
   for (uint16_t x = BOX_DESC.topLeft.x + 1; x < BOX_DESC.bottomRight.x; ++x)
@@ -103,27 +103,27 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
     float z        = ((1 - progress) * BOX_DESC.topLeft.z) + (progress * BOX_DESC.bottomRight.z);
 
     frameSetChar(
-        FRAME, 
-        (FramePos)
-        {
-          .x = x,
-          .y = BOX_DESC.topLeft.y,
-          .z = z
-        },
-        h,
-        BOX_DESC.color,
-        TERMINAL_COLOR_TRANSPARENT);
+      FRAME, 
+      (FramePos)
+      {
+        .x = x,
+        .y = BOX_DESC.topLeft.y,
+        .z = z
+      },
+      h,
+      BOX_DESC.color,
+      TERMINAL_COLOR_TRANSPARENT);
     frameSetChar(
-        FRAME, 
-        (FramePos)
-        {
-          .x = x,
-          .y = BOX_DESC.bottomRight.y,
-          .z = z
-        },
-        h,
-        BOX_DESC.color,
-        TERMINAL_COLOR_TRANSPARENT);
+      FRAME, 
+      (FramePos)
+      {
+        .x = x,
+        .y = BOX_DESC.bottomRight.y,
+        .z = z
+      },
+      h,
+      BOX_DESC.color,
+      TERMINAL_COLOR_TRANSPARENT);
   }
 
   // - - - Vertical edges
@@ -133,26 +133,26 @@ JUST_API void tuiDrawBox(TerminalFrame* FRAME, const TuiBox BOX_DESC)
     float z        = ((1 - progress) * BOX_DESC.topLeft.z) + (progress * BOX_DESC.bottomRight.z);
 
     frameSetChar(
-        FRAME, 
-        (FramePos)
-        {
-          .x = BOX_DESC.topLeft.x,
-          .y = y,
-          .z = z
-        },
-        v,
-        BOX_DESC.color,
-        TERMINAL_COLOR_TRANSPARENT);
+      FRAME, 
+      (FramePos)
+      {
+        .x = BOX_DESC.topLeft.x,
+        .y = y,
+        .z = z
+      },
+      v,
+      BOX_DESC.color,
+      TERMINAL_COLOR_TRANSPARENT);
     frameSetChar(
-        FRAME, 
-        (FramePos)
-        {
-          .x = BOX_DESC.bottomRight.x,
-          .y = y,
-          .z = z
-        },
-        v,
-        BOX_DESC.color,
-        TERMINAL_COLOR_TRANSPARENT);
+      FRAME, 
+      (FramePos)
+      {
+        .x = BOX_DESC.bottomRight.x,
+        .y = y,
+        .z = z
+      },
+      v,
+      BOX_DESC.color,
+      TERMINAL_COLOR_TRANSPARENT);
   }
 }

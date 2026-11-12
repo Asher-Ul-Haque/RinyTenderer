@@ -2,7 +2,6 @@
 #include "rinyTenderer/tui/tui.h"
 #include <stdio.h>
 #include <time.h>
-#include <math.h>
 #include <rinyTenderer/window.h>
 #include <rinyTenderer/renderer/frame.h>
 #include <rinyTenderer/renderer/mesh.h>
@@ -14,8 +13,8 @@ int main(void)
 {
     terminalInit();
     
-    TerminalFrame gameFrame;
-    frameCreateRelative(&gameFrame, 
+    TerminalFrame mainFrame;
+    frameCreateRelative(&mainFrame, 
                         (TerminalPosRel){ .x = 0.05f, .y = 0.05f }, 
                         (TerminalSizeRel){ .x = 0.9f, .y = 0.9f });
 
@@ -32,50 +31,131 @@ int main(void)
         }
 
         // --- Render Pipeline ---
-        frameClear(&gameFrame, clearColor);
+        frameClear(&mainFrame, clearColor);
 
-        TerminalPos mouse = terminalGetMousePos();
-        char mouseStr[64];
-        snprintf(mouseStr, sizeof(mouseStr), "Mouse Screen: X:%d Y:%d | Click: %s", 
-                 (int)mouse.x, (int)mouse.y, 
-                 terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT) ? "DOWN" : "UP");
+// Interactive Widget States
+    bool checkboxState1 = true;
+    bool checkboxState2 = false;
+    float sliderValueFOV = 65.0f;
+    float sliderValueVolume = 0.8f;
+    float progressVal = 0.45f;
 
-        tuiDrawText(&gameFrame, (TuiText){
-            .position = { .x = 4.0f, .y = 2.0f, .z = 9.0f },
-            .text = mouseStr,
-            .maxLen = sizeof(mouseStr),
-            .fgColor = 220,
-            .bgColor = TERMINAL_COLOR_TRANSPARENT
+    bool running = true;
+    while (running)
+    {
+        terminalPollInput();
+
+        if (terminalIsKeyDown(KEY_Q))
+        {
+            running = false;
+        }
+
+        // Clear frame buffer before redrawing
+        frameClear(&mainFrame, 0);
+
+        // 1. Draw Container Panel / Box
+        tuiDrawBox(&mainFrame, (TuiBox){
+            .topLeft     = { .x = 2.0f,  .y = 2.0f,  .z = 0.0f },
+            .bottomRight = { .x = 74.0f, .y = 22.0f, .z = 0.0f },
+            .color       = terminalColorFromRGB(0, 255, 255),
+            .boxType     = TUI_BORDER_ROUNDED
         });
 
-        TuiButton bigButton = {
-            .fillColor   = 52,                    
-            .accentColor = 46,                    
-            .topLeft     = { .x = 10.0f, .y = 10.0f, .z = 5.0f },
-            .bottomRight = { .x = 26.0f, .y = 26.0f, .z = 5.0f },
-            .borderType  = DOUBLE,
-            .text        = "CLICK ME TO LOG",
-            .maxLen      = 18
-        };
+        // 2. Draw Title Text Header
+        tuiDrawText(&mainFrame, (TuiText){
+            .position = { .x = 4.0f, .y = 3.0f, .z = 1.0f },
+            .text     = "=== RINY TENDERER TUI DASHBOARD ===",
+            .maxLen   = 36,
+            .width    = 36,
+            .fgColor  = terminalColorFromRGB(255, 255, 255),
+            .bgColor  = TERMINAL_COLOR_TRANSPARENT
+        });
 
-        if (tuiButton(&gameFrame, bigButton))
+        // 3. Interactive Checkboxes
+        tuiCheckbox(&mainFrame, (TuiCheckbox){
+            .position  = { .x = 6.0f, .y = 6.0f, .z = 2.0f },
+            .label     = "Enable VSync / Frame Lock",
+            .checked   = &checkboxState1,
+            .boxColor  = terminalColorFromRGB(0, 255, 0),
+            .textColor = terminalColorFromRGB(255, 255, 255)
+        });
+
+        tuiCheckbox(&mainFrame, (TuiCheckbox){
+            .position  = { .x = 6.0f, .y = 9.0f, .z = 2.0f },
+            .label     = "Wireframe Debug Mode",
+            .checked   = &checkboxState2,
+            .boxColor  = terminalColorFromRGB(255, 255, 0),
+            .textColor = terminalColorFromRGB(255, 255, 255)
+        });
+
+        // 4. Interactive Sliders
+        tuiSlider(&mainFrame, (TuiSlider){
+            .position     = { .x = 6.0f, .y = 12.0f, .z = 2.0f },
+            .length       = 25,
+            .orientation  = TUI_HORIZONTAL,
+            .label        = "FOV",
+            .maxLen       = 3,
+            .value        = &sliderValueFOV,
+            .minValue     = 30.0f,
+            .maxValue     = 120.0f,
+            .fillColor    = terminalColorFromRGB(0, 0, 255),
+            .emptyColor   = terminalColorFromRGB(0, 0, 0),
+            .accentColor  = terminalColorFromRGB(255, 255, 255),
+            .showValue    = true
+        });
+
+        tuiSlider(&mainFrame, (TuiSlider){
+            .position     = { .x = 6.0f, .y = 15.0f, .z = 2.0f },
+            .length       = 25,
+            .orientation  = TUI_HORIZONTAL,
+            .label        = "Vol",
+            .maxLen       = 3,
+            .value        = &sliderValueVolume,
+            .minValue     = 0.0f,
+            .maxValue     = 1.0f,
+            .fillColor    = terminalColorFromRGB(255, 0, 255),
+            .emptyColor   = terminalColorFromRGB(0, 0, 0),
+            .accentColor  = terminalColorFromRGB(255, 255, 255),
+            .showValue    = true
+        });
+
+        // 5. Progress Bar
+        tuiDrawProgressBar(&mainFrame, (TuiProgressBar){
+            .position       = { .x = 42.0f, .y = 6.0f, .z = 2.0f },
+            .length         = 24,
+            .orientation    = TUI_HORIZONTAL,
+            .progress       = progressVal,
+            .fillColor      = terminalColorFromRGB(0, 255, 0),
+            .emptyColor     = 0,
+            .textColor      = terminalColorFromRGB(255, 255, 255),
+            .showPercentage = true
+        });
+
+        // 6. Action Button
+        bool buttonClicked = tuiButton(&mainFrame, (TuiButton){
+            .topLeft     = { .x = 42.0f, .y = 10.0f, .z = 2.0f },
+            .bottomRight = { .x = 68.0f, .y = 16.0f, .z = 2.0f },
+            .borderType  = TUI_BORDER_HEAVY,
+            .fillColor   = terminalColorFromRGB(45, 120, 60),
+            .accentColor = terminalColorFromRGB(255, 255, 0),
+            .text        = "EXECUTE ACTION",
+            .maxLen      = 14
+        });
+
+        if (buttonClicked)
         {
-            JUST_LOG_INFO("[APP] : Big Button Pressed Successfully at Mouse X:%d Y:%d!", (int)mouse.x, (int)mouse.y);
-        }
-        else
-        {
-            if (terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT))
-            {
-                JUST_LOG_INFO("[APP] : Mouse Down, but missed button at X:%d Y:%d", (int)mouse.x, (int)mouse.y);
-            }
+            // Trigger feedback or update state when clicked
+            progressVal += 0.1f;
+            if (progressVal > 1.0f) progressVal = 0.0f;
         }
 
-        frameRender(&gameFrame);
+        frameRender(&mainFrame);
         nanosleep(&frameDelay, NULL);
     }
 
-    frameDestroy(&gameFrame);
+    frameDestroy(&mainFrame);
     terminalShutdown();
     
     return 0;
+    }
 }
