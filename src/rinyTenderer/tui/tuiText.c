@@ -1,6 +1,10 @@
+#include "justLibrary.h"
+#include "rinyTenderer/_structs.h"
+#include "rinyTenderer/window.h"
 #include <rinyTenderer/tui/tui.h>
 #include <rinyTenderer/renderer/frame.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 JUST_API void tuiDrawText(TerminalFrame* FRAME, TuiText TEXT_DESC)
@@ -78,4 +82,110 @@ JUST_API void tuiDrawTextCentered(TerminalFrame* FRAME, TuiTextCentered TEXT_DES
       .bgColor  = TEXT_DESC.bgColor,
       .fgColor  = TEXT_DESC.fgColor
     });
+}
+
+JUST_API bool tuiDrawTextInput(TerminalFrame* FRAME, TuiTextInput TEXT_INPUT)
+{
+  JUST_ASSERT_DEBUG(FRAME != NULL);
+  JUST_ASSERT_DEBUG(TEXT_INPUT.buffer != NULL);
+  JUST_ASSERT_DEBUG(TEXT_INPUT.bufferSize > 0);
+
+  // - - - Snap Y to even sub-pixel cell row boundary
+  int       cellY   = (int) TEXT_INPUT.topLeft.y / 2;
+  FramePos  topLeft = 
+    {
+      .x = TEXT_INPUT.topLeft.x,
+      .y = cellY * 2,
+      .z = TEXT_INPUT.topLeft.z
+    };
+  cellY                 = (int) TEXT_INPUT.bottomRight.y / 2;
+  FramePos bottomRight  = 
+    {
+      .x = TEXT_INPUT.bottomRight.x,
+      .y = cellY * 2,
+      .z = TEXT_INPUT.bottomRight.z
+    };
+
+  // - - - Focus Management via Mouse Click
+  static char* focusedInputBuffer = NULL;
+  if (terminalIsMouseButtonDown(MOUSE_BUTTON_LEFT))
+  {
+    TerminalPos mousePos      = terminalGetMousePos();
+    FramePos    mouseFramePos = tuiMapMouseToFrame(FRAME, mousePos);
+
+    if (tuiIsPointInBounds(mouseFramePos, topLeft, bottomRight))
+    { focusedInputBuffer = TEXT_INPUT.buffer; }
+    else if (focusedInputBuffer == TEXT_INPUT.buffer)
+    { focusedInputBuffer = NULL; }
+  }
+
+  bool isFocused  = (focusedInputBuffer == TEXT_INPUT.buffer);
+  bool modified   = false;
+
+  // - - - Handle Keyboard input if focused
+  size_t      currLen   = strlen(TEXT_INPUT.buffer);
+  if (isFocused)
+  {
+    size_t      typedLen  = terminalGetTextLength();
+    const char* typedText = terminalGetText();
+
+    // - - - Handle Backspace
+    if (terminalIsKeyDown(KEY_BACKSPACE) && currLen > 0)
+    {
+      TEXT_INPUT.buffer[currLen - 1] = '\0';
+      modified = true;
+    }
+
+    if (typedLen > 0 && typedText != NULL)
+    {
+      for (size_t i = 0; i < typedLen; ++i)
+      {
+        if (currLen + 1 < TEXT_INPUT.bufferSize)
+        {
+          char c                          = typedText[i];
+          TEXT_INPUT.buffer[currLen]      = c;
+          TEXT_INPUT.buffer[currLen + 1]  = '\0';
+          modified                        = true;
+          currLen++;
+        }
+      }
+    }
+  }
+
+  // - - - Render text buffer
+  tuiDrawText(FRAME, (TuiText)
+    {
+      .position = topLeft,
+      .text     = TEXT_INPUT.buffer,
+      .maxLen   = TEXT_INPUT.bufferSize,
+      .width    = TEXT_INPUT.width,
+      .fgColor  = TEXT_INPUT.fgColor,
+      .bgColor  = TEXT_INPUT.bgColor
+    });
+
+  // - - - Render Cursor mathematically accounting for wrapping
+  if (isFocused)
+  {
+    size_t lineIdx = currLen / (size_t)TEXT_INPUT.width;
+    size_t colIdx  = currLen % (size_t)TEXT_INPUT.width;
+
+    FramePos cursorPos = 
+      {
+        .x = topLeft.x + (float)colIdx,
+        .y = topLeft.y + (float)(lineIdx * 2),
+        .z = topLeft.z
+      };
+
+    static uint8_t blinkTimer = 0;
+    blinkTimer++;
+    bool showCursor = (blinkTimer < 64);
+    blinkTimer = blinkTimer % 96;
+
+    if (showCursor)
+    {
+      frameSetChar(FRAME, cursorPos, "█", TEXT_INPUT.cursorColor, TEXT_INPUT.bgColor);
+    }
+  }
+
+  return modified;
 }

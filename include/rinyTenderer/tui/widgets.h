@@ -53,6 +53,19 @@ typedef struct tuiTextCentered
   TerminalColor bgColor;  ///< Background color
 } TuiTextCentered;
 
+/// @brief : Representation of a text input widget
+typedef struct tuiTextInput
+{
+  FramePos      topLeft;     ///< Top-left of the input field
+  FramePos      bottomRight; ///< Bottom-right of the input field                           
+  char*         buffer;      ///< Mutable string buffer to store input
+  size_t        bufferSize;  ///< Maximum capacity of the buffer
+  uint16_t      width;       ///< Visible width of the input box in terminal cells
+  TerminalColor fgColor;     ///< Text color
+  TerminalColor bgColor;     ///< Background color of the input box
+  TerminalColor cursorColor; ///< Color of the cursor / border when focused
+} TuiTextInput;
+
 /// @brief : Representation of all the info needed for a tui progress bar
 typedef struct tuiProgressBar
 {

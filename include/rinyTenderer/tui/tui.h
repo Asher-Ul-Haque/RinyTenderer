@@ -1,5 +1,6 @@
 #pragma once
 
+#include "rinyTenderer/window.h"
 #include <justLibrary.h>
 #include <rinyTenderer/_structs.h>
 #include <rinyTenderer/tui/widgets.h>
@@ -16,6 +17,7 @@ JUST_API void tuiDrawText(TerminalFrame* FRAME, TuiText TEXT_DESC);
 
 JUST_API void tuiDrawTextCentered(TerminalFrame* FRAME, TuiTextCentered TEXT_DESC);
 
+JUST_API bool tuiDrawTextInput(TerminalFrame* FRAME, TuiTextInput TEXT_INPUT);
 
 // - - - TUI Widgets & Meters - - -
 

@@ -179,8 +179,8 @@ JUST_API void terminalPollInput(void)
           {
             ctx.mousePos = (TerminalPos){.x = cx, .y = cy};
 
-            bool       isPress = (termType == 'M');
-            MouseButton btn      = MOUSE_BUTTON_COUNT;
+            bool        isPress = (termType == 'M');
+            MouseButton btn     = MOUSE_BUTTON_COUNT;
 
             if ((cb & 0x40) != 0)
             {
@@ -225,7 +225,6 @@ JUST_API void terminalPollInput(void)
       }
       else if (next == 'O')
       {
-        // - - - Handle SS3 application mode arrow keys (ESC O A/B/C/D)
         char modeChar;
         if (read(STDIN_FILENO, &modeChar, 1) == 1)
         {
@@ -252,7 +251,7 @@ JUST_API void terminalPollInput(void)
     KeyCode code = KEY_UNKNOWN;
     if      (c == '\n'  || c == '\r') { code = KEY_ENTER; }
     else if (c == 127   || c == '\b') { code = KEY_BACKSPACE; }
-    else if (c == ' ')              { code = KEY_SPACE; }
+    else if (c == ' ')                { code = KEY_SPACE; }
     else if (c >= 'a' && c <= 'z')    { code = KEY_A + (c - 'a'); }
     else if (c >= 'A' && c <= 'Z')    { code = KEY_A + (c - 'A'); }
     else if (c >= '0' && c <= '9')    { code = KEY_A + (c - '0'); }
@@ -263,19 +262,10 @@ JUST_API void terminalPollInput(void)
       justBitsetSet(&ctx.keys, code);
     }
 
-    // - - - 3. Accumulate printable chars into text buffer
-    int asciiPrintableStart = 32;
-    int asciiPrintableEnd   = 126;
-    if (
-        (
-          (c >= asciiPrintableStart && c <= asciiPrintableEnd) || 
-          c == '\n'                                            || 
-          c == '\r'                                            || 
-          c == 127                                             || 
-          c == '\b') && 
-        ctx.textLength < sizeof(ctx.textBuffer) - 1)
+    // - - - Accumulate strictly printable ASCII chars into text buffer
+    if (c >= 32 && c <= 126 && ctx.textLength < sizeof(ctx.textBuffer) - 1)
     {
-      ctx.textBuffer[ctx.textLength++]  = c;
+      ctx.textBuffer[ctx.textLength++] = c;
     }
   }
 }

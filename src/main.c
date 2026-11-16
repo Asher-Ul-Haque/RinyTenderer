@@ -40,6 +40,8 @@ int main(void)
     float sliderValueVolume = 0.8f;
     float progressVal = 0.45f;
 
+    char textBuffer[1024];
+
     bool running = true;
     while (running)
     {
@@ -148,6 +150,27 @@ int main(void)
             progressVal += 0.1f;
             if (progressVal > 1.0f) progressVal = 0.0f;
         }
+
+        // - - - Add a text input
+        tuiDrawBox(&mainFrame, (TuiBox){
+            .topLeft     = { .x = 2.0f,  .y = 24.0f,  .z = 0.0f },
+            .bottomRight = { .x = 74.0f, .y = 44.0f, .z = 0.0f },
+            .color       = terminalColorFromRGB(0, 255, 255),
+            .boxType     = TUI_BORDER_ROUNDED
+        });
+        
+        TuiTextInput input = 
+        {
+          .buffer = textBuffer,
+          .bufferSize = 1024,
+          .bgColor = TERMINAL_COLOR_TRANSPARENT,
+          .fgColor = terminalColorFromRGB(255, 255, 255),
+          .topLeft = { .x = 4.0f, .y = 26.0f, .z = 0.0f },
+          .bottomRight = { .x = 72.0f, .y = 42.0f, .z = 0.0f },
+          .width = 70.0f,
+          .cursorColor = terminalColorFromRGB(0, 255, 255)
+        };
+        tuiDrawTextInput(&mainFrame, input);
 
         frameRender(&mainFrame);
         nanosleep(&frameDelay, NULL);
